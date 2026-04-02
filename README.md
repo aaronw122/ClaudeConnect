@@ -12,13 +12,13 @@ Your Claude SSHs into your friend's machine, spawns a read-only AI on their proj
 ## How it works
 
 ```
-You: "/cc what is conor working on"
+You: "/cc what is joe working on"
   │
   ├─ Your Claude reads ~/.claude-connect/peers.yaml
-  ├─ SSHs into conor's machine
+  ├─ SSHs into joe's machine
   ├─ Spawns a read-only AI (Claude, Codex, or Gemini) on his repo
   ├─ The remote AI analyzes git state and summarizes
-  └─ You get: "Conor is refactoring the auth middleware on feat/auth-v2..."
+  └─ You get: "Joe is refactoring the auth middleware on feat/auth-v2..."
 ```
 
 ## What's in this repo
@@ -215,9 +215,9 @@ These are all handled automatically by the setup flow and runner script, but doc
 Query a peer's AI about their work.
 
 ```
-/cc what is conor working on
-/cc will my auth changes conflict with conor
-/cc ask conor about the api repo
+/cc what is joe working on
+/cc will my auth changes conflict with joe
+/cc ask joe about the api repo
 ```
 
 ### `/cc-setup`
