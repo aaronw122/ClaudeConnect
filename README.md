@@ -138,18 +138,6 @@ Claude Code stores auth in the macOS Keychain, which isn't accessible from SSH s
 - **Revoke anytime:** `rm ~/.claude-connect/.oauth-token` kills AI auth immediately
 - **Revoke the session entirely:** `claude auth logout` invalidates the underlying OAuth token
 
-### What crosses the wire
-
-The remote AI sees your code through git commands and responds with summaries, explanations, or code snippets — whatever the query asks for. Responses are capped at 8KB per query. You can ask for a high-level summary of what someone's working on, or drill into specifics like "show me the User type definition." Both are valid. The 8KB cap prevents bulk extraction, not targeted questions.
-
-### What Claude Connect does NOT do
-
-- **No cloud relay.** Traffic goes directly between machines over SSH. No third-party server sees your queries or responses.
-- **No daemon.** Nothing runs on your machine until a query comes in. There's no background process, no listening port, no service to manage.
-- **No bulk code extraction.** The AI sees your code through git commands (diffs, show, log), but it has no tools to `cat` files, list directories, or archive anything. It can't systematically walk your codebase. The 8KB response cap limits how much text comes back per query, and the AI is instructed to summarize rather than echo raw code — but diffs do contain real code snippets.
-- **No persistent access.** Each query spawns a fresh, short-lived AI session that terminates when the response is generated. No session state is retained between queries.
-- **No escalation path.** The restricted SSH key + script allowlist + AI tool allowlist means there is no path from "has the SSH key" to "has a shell on the machine."
-
 See `remote-query.sh` for the exact CLI invocations and enforcement.
 
 ## Cross-model support
