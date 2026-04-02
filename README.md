@@ -7,7 +7,7 @@ Query your teammates' AI agents about their uncommitted, in-progress work — di
 /cc will my changes conflict with joe's
 ```
 
-Your Claude SSHs into your friend's machine, spawns a read-only AI on their project, and brings back a summary of what they're doing. This is restricted to whatever project directory your friend chooses to share — enforced by a restricted SSH key, a script allowlist, and hard-coded AI tool constraints. 
+Your Claude SSHs into your friend's machine, spawns a read-only AI on their project, and brings back a summary of what they're doing. **This is restricted to whatever project directory your friend chooses to share** — enforced by a restricted SSH key, a script allowlist, and hard-coded AI tool constraints. 
 
 ## How it works
 
