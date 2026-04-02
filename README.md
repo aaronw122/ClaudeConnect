@@ -72,12 +72,12 @@ Layer 2: Directory scoping (remote-query.sh)
 
 Layer 3: AI tool allowlist (--allowedTools / --sandbox)
   The spawned AI has access to exactly 6 read-only git commands:
-    • status    — what's changed
-    • diff      — line-by-line changes
-    • log       — commit history
-    • branch    — which branches exist
+    • status   
+    • diff      
+    • log       
+    • branch   
     • show      — full file contents at any commit (e.g. git show HEAD:src/types.ts)
-    • ls-files  — what files are tracked
+    • ls-files 
   This covers everything git tracks — current files, history, diffs,
   branches. But it naturally excludes anything not in git: .env files,
   credentials, local configs, and anything in .gitignore.
