@@ -118,31 +118,16 @@ This means:
 
 This step is optional but recommended. Without it, the SSH key has full access to your user account (which is the default for any SSH key).
 
-### Directory scoping can't be bypassed
+### Revoking access
 
-The runner script (`remote-query.sh`) validates every request:
+You have full control at every level:
 
-- Both the requested path and your configured root are resolved with `realpath` — symlinks, `..`, and other tricks are eliminated
-- Prefix check with trailing slash prevents sibling directory attacks (e.g., `/home/you/codeevil` can't match `/home/you/code`)
-- The script is installed as `chmod 555` (read-only) — can't be casually edited
-
-### What about the human?
-
-**Claude Connect does not increase your coworker's access.** It constrains the automated AI agent to far less than what your coworker could already do.
-
-Before Claude Connect:
-- Your coworker has SSH access to your machine (you set this up)
-- They can read any file, run any command, under their SSH user
-
-After Claude Connect (with restricted key):
-- Their SSH key is **restricted** — it can only run the runner script, not arbitrary commands
-- The AI agent is **sandboxed** — 6 git commands, one directory, read-only
-- If they want full SSH access for other work, they need a **separate, unrestricted key**
-
-The security model:
-- **AI agent** → directory-scoped + 6 commands + 8KB cap
-- **Their restricted SSH key** → can only invoke the runner script (you set this up yourself — Claude never edits `authorized_keys`)
-- **Their unrestricted SSH key (if they have one)** → same access as before, not affected by Claude Connect
+| Action | How | Effect |
+|---|---|---|
+| Kill the connection | Remove their key from `~/.ssh/authorized_keys` | Immediate — next SSH attempt is rejected |
+| Kill AI auth | `rm ~/.claude-connect/.oauth-token` | AI can't authenticate, queries fail |
+| Change what's visible | Edit `path` in `~/.claude-connect/peers.yaml` | Immediate — next query uses new path |
+| Full disconnect | All of the above + remove their entry from `peers.yaml` | Complete removal |
 
 ### Auth credentials are scoped and revocable
 
@@ -156,17 +141,6 @@ Claude Code stores auth in the macOS Keychain, which isn't accessible from SSH s
 ### What crosses the wire
 
 The remote AI sees your code through git commands and responds with summaries, explanations, or code snippets — whatever the query asks for. Responses are capped at 8KB per query. You can ask for a high-level summary of what someone's working on, or drill into specifics like "show me the User type definition." Both are valid. The 8KB cap prevents bulk extraction, not targeted questions.
-
-### Revoking access
-
-You have full control at every level:
-
-| Action | How | Effect |
-|---|---|---|
-| Kill the connection | Remove their key from `~/.ssh/authorized_keys` | Immediate — next SSH attempt is rejected |
-| Kill AI auth | `rm ~/.claude-connect/.oauth-token` | AI can't authenticate, queries fail |
-| Change what's visible | Edit `path` in `~/.claude-connect/peers.yaml` | Immediate — next query uses new path |
-| Full disconnect | All of the above + remove their entry from `peers.yaml` | Complete removal |
 
 ### What Claude Connect does NOT do
 
