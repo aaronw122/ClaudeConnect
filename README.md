@@ -87,7 +87,7 @@ Layer 4: Response truncation
   and code snippets, too small for bulk codebase extraction.
 ```
 
-All four layers are independent. Any single layer being compromised still leaves the others intact.
+All four layers are independent. Any single layer being compromised still leaves the others intact. Even if someone tries to prompt-inject the AI, there's nothing to exploit. The AI also runs in `--bare` mode, which disables hooks, plugins, and CLAUDE.md auto-discovery — so nothing on your machine can inject behavior into the session.
 
 ### You control what peers can see
 
@@ -99,12 +99,6 @@ local:
 ```
 
 Change it anytime. Remove it and nobody can query you.
-
-### The remote AI is locked down
-
-When a peer queries you, a headless AI is spawned on your machine with access to exactly **6 read-only git commands**: `status`, `diff`, `log`, `branch`, `show`, and `ls-files`. That's it. No file reads outside of git, no writes, no shell, no network.
-
-This is enforced at the tool level — the AI literally does not have other tools available. Even if someone tries to prompt-inject the AI, there's nothing to exploit. The AI also runs in `--bare` mode, which disables hooks, plugins, and CLAUDE.md auto-discovery — so nothing on your machine can inject behavior into the session.
 
 ### The SSH key is sandboxed too
 
