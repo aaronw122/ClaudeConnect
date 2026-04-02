@@ -42,11 +42,11 @@ cp cc.md ~/.claude/commands/cc.md
 cp cc-setup.md ~/.claude/commands/cc-setup.md
 ```
 
-Then open Claude Code and run `/cc-setup`. It handles everything else — networking, config, runner script, auth, and pushing setup to your coworker's machine. You'll answer a few questions and it does the rest.
+ It handles everything else — networking, config, runner script, auth, and pushing setup to your coworker's machine. 
 
 ## Two-way setup
 
-When you run `/cc-setup`, it pushes the runner script, slash commands, and a partial config to your coworker's machine over SSH. Next time they open Claude and run `/cc-setup`, they:
+Then open Claude Code and run `/cc-setup`. You'll answer a few questions and it does the rest. it pushes the runner script, slash commands, and a partial config to your coworker's machine over SSH. Next time they open Claude and run `/cc-setup`, they:
 
 1. Answer one question — which directory to share
 2. Auth token is extracted automatically (Claude handles this)
