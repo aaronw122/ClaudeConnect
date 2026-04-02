@@ -1,0 +1,19 @@
+# Claude Connect — Configuration
+# Copy to ~/.claude-connect/peers.yaml
+#
+# IMPORTANT: Use exactly 2-space indentation. The parser is whitespace-sensitive.
+
+# People you want to query
+peers:
+  conor:
+    host: conor@conors-mbp.tailnet    # SSH target
+    path: /Users/conor/code/work      # root directory on their machine
+
+  # alice:
+  #   host: alice@10.0.0.42
+  #   path: /home/alice/projects
+
+# What peers can see on YOUR machine
+# Any git repo under this directory is queryable
+local:
+  path: /home/you/code/work
