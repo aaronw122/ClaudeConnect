@@ -5,8 +5,6 @@ An MCP server that exposes read-only git commands to trusted peers. Ask your Cla
 ## How it works
 
 ```
-  You: "What is Joe working on?"
-
   Your Claude Code                         Joe's Machine
   ┌──────────────────┐                    ┌──────────────────┐
   │                  │  1. authenticate   │  claude-connect   │
