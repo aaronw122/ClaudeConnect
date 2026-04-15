@@ -1,22 +1,22 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { homedir, hostname } from "node:os";
+import { homedir, hostname, networkInterfaces } from "node:os";
 import { randomBytes } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import { parse, stringify } from "yaml";
 
 const CONFIG_DIR = resolve(homedir(), ".claude-connect");
 const CONFIG_PATH = resolve(CONFIG_DIR, "config.yaml");
 
-function getTailscaleHostname(): string | null {
-  try {
-    const result = spawnSync("tailscale", ["status", "--json"], { timeout: 3000 });
-    if (result.status === 0) {
-      const status = JSON.parse(result.stdout.toString());
-      const self = status?.Self;
-      if (self?.DNSName) return self.DNSName.replace(/\.$/, "");
+function getTailscaleIp(): string | null {
+  const nets = networkInterfaces();
+  for (const iface of Object.values(nets)) {
+    if (!iface) continue;
+    for (const info of iface) {
+      if (info.family === "IPv4" && info.address.startsWith("100.")) {
+        return info.address;
+      }
     }
-  } catch {}
+  }
   return null;
 }
 
@@ -55,8 +55,8 @@ export function runInvite(args: string[]) {
   writeFileSync(CONFIG_PATH, stringify(doc), { encoding: "utf-8", mode: 0o600 });
 
   const port = doc.server?.port ?? 8767;
-  const tailscaleHost = getTailscaleHostname();
-  const peerHost = tailscaleHost ?? getLocalHostname();
+  const tailscaleIp = getTailscaleIp();
+  const peerHost = tailscaleIp ?? getLocalHostname();
 
   console.log(`Added peer "${name}" to config.\n`);
   console.log("─────────────────────────────────────────────────────");

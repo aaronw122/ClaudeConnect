@@ -21,22 +21,16 @@ function getLocalIp(): string | null {
 }
 
 function getTailscaleIp(): string | null {
-  try {
-    const result = spawnSync("tailscale", ["ip", "-4"], { timeout: 3000 });
-    if (result.status === 0) return result.stdout.toString().trim();
-  } catch {}
-  return null;
-}
-
-function getTailscaleHostname(): string | null {
-  try {
-    const result = spawnSync("tailscale", ["status", "--json"], { timeout: 3000 });
-    if (result.status === 0) {
-      const status = JSON.parse(result.stdout.toString());
-      const self = status?.Self;
-      if (self?.DNSName) return self.DNSName.replace(/\.$/, "");
+  // Detect Tailscale by scanning network interfaces for 100.x.x.x (CGNAT range)
+  const nets = networkInterfaces();
+  for (const iface of Object.values(nets)) {
+    if (!iface) continue;
+    for (const info of iface) {
+      if (info.family === "IPv4" && info.address.startsWith("100.")) {
+        return info.address;
+      }
     }
-  } catch {}
+  }
   return null;
 }
 
@@ -144,10 +138,9 @@ notifications: true
   const serverStarted = installLaunchAgent(indexPath);
 
   const localHost = getLocalHostname();
-  const tailscaleHost = getTailscaleHostname();
   const tailscaleIp = getTailscaleIp();
   const localIp = getLocalIp();
-  const peerHost = tailscaleHost ?? localHost;
+  const peerHost = tailscaleIp ?? localHost;
 
   console.log("Claude Connect initialized!\n");
   console.log(`Config: ${CONFIG_PATH}`);
@@ -165,12 +158,10 @@ notifications: true
   console.log("\nYour addresses:");
   console.log(`  Hostname:  ${localHost}:${port}`);
   if (localIp) console.log(`  Local IP:  ${localIp}:${port}`);
-  if (tailscaleHost) {
-    console.log(`  Tailscale: ${tailscaleHost}:${port}`);
-  } else if (tailscaleIp) {
+  if (tailscaleIp) {
     console.log(`  Tailscale: ${tailscaleIp}:${port}`);
   } else {
-    console.log(`  Tailscale: not detected (run "tailscale status" to find it)`);
+    console.log(`  Tailscale: not detected`);
   }
 
   console.log("\n─────────────────────────────────────────────────────");
@@ -179,8 +170,9 @@ notifications: true
   console.log(`    --host ${peerHost}:${port} \\`);
   console.log(`    --token ${token}\n`);
   console.log("  Replace [your-name] with whatever you want them to see.");
-  if (!tailscaleHost) {
-    console.log("  Replace host with your Tailscale hostname if on different networks.");
+  if (!tailscaleIp) {
+    console.log("  Using local hostname — peers must be on the same network.");
+    console.log("  Install Tailscale for cross-network access.");
   }
   console.log("─────────────────────────────────────────────────────");
 }
