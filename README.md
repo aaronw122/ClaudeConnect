@@ -30,43 +30,27 @@ You ask "what is Joe working on?" -- your Claude calls `git_status`, `git_diff`,
 
 ## Setup
 
-Both people do the same thing. You exchange one line each and both directions are live.
+Both people do the same three steps.
 
-**On your machine:**
-
-```bash
-bunx claude-connect init
-```
-
-This generates your config and prints a command to send your peer:
-
-```
-Send this to your peer:
-
-  bunx claude-connect add-peer aaron \
-    --host Aarons-MacBook-Pro.local:8767 \
-    --token a1b2c3...
-```
-
-Edit `~/.claude-connect/config.yaml` to add the directories you want to share.
-
-**Your peer does the same on their machine**, then sends you their `add-peer` command.
-
-**You each run the other's command:**
+### Step 1. Initialize and share your directories
 
 ```bash
-# You run Joe's command (adds Joe's server to your Claude Code)
+bunx claude-connect init --share ~/code/my-project
+```
+
+This prints a command to send your peer. Copy it and DM it to them.
+
+### Step 2. Run the command your peer sent you
+
+```bash
 bunx claude-connect add-peer joe \
   --host Joes-MacBook-Pro.local:8767 \
   --token d4e5f6...
-
-# Joe runs your command (adds your server to Joe's Claude Code)
-bunx claude-connect add-peer aaron \
-  --host Aarons-MacBook-Pro.local:8767 \
-  --token a1b2c3...
 ```
 
-**Start the server on both machines:**
+This adds their server to your Claude Code config automatically.
+
+### Step 3. Start the server
 
 ```bash
 bunx claude-connect serve

@@ -38,6 +38,10 @@ function getTailscaleHostname(): string | null {
   return null;
 }
 
+function resolvePath(p: string): string {
+  return p.startsWith("~/") ? resolve(homedir(), p.slice(2)) : resolve(p);
+}
+
 export function runInit(args: string[]) {
   const force = args.includes("--force");
 
@@ -47,22 +51,35 @@ export function runInit(args: string[]) {
     process.exit(1);
   }
 
+  // Parse --share flags
+  const dirs: { name: string; path: string }[] = [];
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--share" && args[i + 1]) {
+      const rawPath = args[i + 1];
+      const resolved = resolvePath(rawPath);
+      const name = resolved.split("/").pop() || "project";
+      dirs.push({ name, path: rawPath.startsWith("~/") ? rawPath : resolved });
+      i++;
+    }
+  }
+
   mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
 
   const token = randomBytes(32).toString("hex");
   const port = 8767;
-  const host = hostname();
-  const localIp = getLocalIp();
-  const tailscaleIp = getTailscaleIp();
-  const tailscaleHost = getTailscaleHostname();
+
+  const dirYaml = dirs.length > 0
+    ? dirs.map(d => `  - name: ${d.name}\n    path: ${d.path}`).join("\n")
+    : `[]
+  # Add directories to share:
+  # - name: my-project
+  #   path: ~/code/my-project`;
 
   const config = `server:
   port: ${port}
 
-directories: []
-  # Example:
-  # - name: my-project
-  #   path: ~/code/my-project
+directories:
+${dirYaml}
 
 peers:
   my-peer:
@@ -73,10 +90,21 @@ notifications: true
 
   writeFileSync(CONFIG_PATH, config, { encoding: "utf-8", mode: 0o600 });
 
-  console.log("Claude Connect initialized!\n");
-  console.log(`Config: ${CONFIG_PATH}\n`);
+  const host = hostname();
+  const localIp = getLocalIp();
+  const tailscaleHost = getTailscaleHostname();
+  const tailscaleIp = getTailscaleIp();
+  const peerHost = tailscaleHost ?? `${host}.local`;
 
-  console.log("Your addresses:");
+  console.log("Claude Connect initialized!\n");
+  console.log(`Config: ${CONFIG_PATH}`);
+  if (dirs.length > 0) {
+    console.log(`Sharing: ${dirs.map(d => d.name).join(", ")}`);
+  } else {
+    console.log("No directories shared yet — edit config to add some.");
+  }
+
+  console.log("\nYour addresses:");
   console.log(`  Hostname:  ${host}.local:${port}`);
   if (localIp) console.log(`  Local IP:  ${localIp}:${port}`);
   if (tailscaleHost) {
@@ -84,25 +112,17 @@ notifications: true
   } else if (tailscaleIp) {
     console.log(`  Tailscale: ${tailscaleIp}:${port}`);
   } else {
-    console.log(`  Tailscale: not detected (run "tailscale ip -4" to check)`);
+    console.log(`  Tailscale: not detected (run "tailscale status" to find it)`);
   }
 
-  console.log("\nNext steps:");
-  console.log("  1. Edit config to add your directories");
-  console.log("  2. Run: bunx claude-connect serve\n");
-
-  console.log("─────────────────────────────────────────────────────");
+  console.log("\n─────────────────────────────────────────────────────");
   console.log("Send this to your peer:\n");
-
-  const peerHost = tailscaleHost ?? `${host}.local`;
   console.log(`  bunx claude-connect add-peer [your-name] \\`);
   console.log(`    --host ${peerHost}:${port} \\`);
   console.log(`    --token ${token}\n`);
-
-  console.log("  [your-name] = whatever you want them to see you as");
+  console.log("  Replace [your-name] with whatever you want them to see.");
   if (!tailscaleHost) {
-    console.log(`  [host]     = replace with Tailscale hostname if on different networks`);
-    console.log(`               run "tailscale status" to find it`);
+    console.log("  Replace host with your Tailscale hostname if on different networks.");
   }
   console.log("─────────────────────────────────────────────────────");
 }
