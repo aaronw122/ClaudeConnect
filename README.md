@@ -53,7 +53,16 @@ bunx claude-connect serve    # start the server
 ```
 
 4. Do the same for their server on your end
-5. Both machines need network access to each other (LAN, Tailscale, VPN)
+
+## Networking
+
+Both machines need to reach each other over the network.
+
+**Same WiFi/LAN** — use your Mac's `.local` hostname (e.g., `http://Aarons-MacBook-Pro.local:8767/mcp`). This works out of the box on any Mac, stays stable even if your IP changes. Run `hostname` to find yours.
+
+**Different networks** — use [Tailscale](https://tailscale.com) (recommended). It gives every machine a stable hostname reachable from anywhere, encrypted end-to-end. Free for personal use, 2-minute setup. Your URL becomes something like `http://aarons-macbook.tail1234.ts.net:8767/mcp`.
+
+Any VPN or direct connectivity also works — Tailscale is just the easiest path.
 
 ## What peers can see
 
