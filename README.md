@@ -25,8 +25,12 @@ You ask "what is Joe working on?" -- your Claude calls `git_status`, `git_diff`,
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org) 18+ — JavaScript runtime
-- [Tailscale](https://tailscale.com) (recommended) — makes machines reachable to each other from anywhere. Free for personal use. If both machines are on the same WiFi, it can work without. 
+- [Tailscale](https://tailscale.com) (recommended) — makes machines reachable to each other from anywhere. Free for personal use. If both machines are on the same WiFi, Tailscale isn't required.
+
+```bash
+brew tap aaronw122/tap
+brew install claude-connect
+```
 
 ## Setup
 
@@ -35,7 +39,7 @@ Both people do the same two steps.
 ### Step 1. Initialize
 
 ```bash
-npx claude-connect init --share ~/code/my-project
+claude-connect init --share ~/code/my-project
 ```
 
 This creates your config, starts the server in the background (auto-starts on login), and prints a command to send your peer.
@@ -43,7 +47,7 @@ This creates your config, starts the server in the background (auto-starts on lo
 ### Step 2. Run the command your peer sent you
 
 ```bash
-npx claude-connect add-peer joe \
+claude-connect add-peer joe \
   --host Joes-MacBook-Pro.local:8767 \
   --token d4e5f6...
 ```
@@ -67,7 +71,7 @@ Claude sees your peer's MCP tools, calls `git_status`, `git_diff`, `git_log` etc
 Only run `init` once — running it again will wipe your config. To add a new peer:
 
 ```bash
-npx claude-connect invite conor
+claude-connect invite conor
 ```
 
 This generates a new token for Conor, adds it to your config, and prints the `add-peer` command to send them. Your existing peers and directories are untouched.
@@ -75,7 +79,7 @@ This generates a new token for Conor, adds it to your config, and prints the `ad
 When Conor sends you their command, run it:
 
 ```bash
-npx claude-connect add-peer conor \
+claude-connect add-peer conor \
   --host Conors-MacBook-Pro.local:8767 \
   --token ...
 ```
@@ -85,9 +89,9 @@ Both directions are live.
 ## Pause / Resume
 
 ```bash
-npx claude-connect pause     # stop accepting queries (server stays running)
-npx claude-connect resume    # start accepting again
-npx claude-connect status    # check if running/paused
+claude-connect pause     # stop accepting queries (server stays running)
+claude-connect resume    # start accepting again
+claude-connect status    # check if running/paused
 ```
 
 Peers will see "server is paused" until you resume.
@@ -132,12 +136,12 @@ If a token is compromised, the attacker can only read git data from your configu
 
 | Command | Description |
 |---------|-------------|
-| `npx claude-connect init` | First-time setup — generates config, starts server |
-| `npx claude-connect invite <name>` | Generate a token and invite a new peer |
-| `npx claude-connect add-peer <name>` | Add a peer's server to your Claude Code |
-| `npx claude-connect pause` | Temporarily stop accepting queries |
-| `npx claude-connect resume` | Resume accepting queries |
-| `npx claude-connect status` | Show server state |
+| `claude-connect init` | First-time setup — generates config, starts server |
+| `claude-connect invite <name>` | Generate a token and invite a new peer |
+| `claude-connect add-peer <name>` | Add a peer's server to your Claude Code |
+| `claude-connect pause` | Temporarily stop accepting queries |
+| `claude-connect resume` | Resume accepting queries |
+| `claude-connect status` | Show server state |
 
 ## Config
 

@@ -152,7 +152,7 @@ notifications: true
   if (serverStarted) {
     console.log(`Server: running on port ${port} (auto-starts on login)`);
   } else {
-    console.log(`Server: failed to start — run "npx claude-connect serve" manually`);
+    console.log(`Server: failed to start — run "claude-connect serve" manually`);
   }
 
   console.log("\nYour addresses:");
@@ -166,7 +166,7 @@ notifications: true
 
   console.log("\n─────────────────────────────────────────────────────");
   console.log("Send this to your peer:\n");
-  console.log(`  npx claude-connect add-peer [your-name] \\`);
+  console.log(`  claude-connect add-peer [your-name] \\`);
   console.log(`    --host ${peerHost}:${port} \\`);
   console.log(`    --token ${token}\n`);
   console.log("  Replace [your-name] with whatever you want them to see.");

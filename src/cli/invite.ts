@@ -35,7 +35,7 @@ export function runInvite(args: string[]) {
   }
 
   if (!existsSync(CONFIG_PATH)) {
-    console.error("No config found. Run `npx claude-connect init` first.");
+    console.error("No config found. Run `claude-connect init` first.");
     process.exit(1);
   }
 
@@ -61,7 +61,7 @@ export function runInvite(args: string[]) {
   console.log(`Added peer "${name}" to config.\n`);
   console.log("─────────────────────────────────────────────────────");
   console.log(`Send this to ${name}:\n`);
-  console.log(`  npx claude-connect add-peer [your-name] \\`);
+  console.log(`  claude-connect add-peer [your-name] \\`);
   console.log(`    --host ${peerHost}:${port} \\`);
   console.log(`    --token ${token}\n`);
   console.log("  Replace [your-name] with whatever you want them to see.");
