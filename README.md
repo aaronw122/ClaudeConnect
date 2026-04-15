@@ -7,17 +7,18 @@ An MCP server that exposes read-only git commands to trusted peers. Ask your Cla
 ```
   You: "What is Joe working on?"
 
-  Your Claude Code                         Joe's Machine
+  Your Machine (client)                    Joe's Machine (server)
   ┌──────────────────┐                    ┌──────────────────┐
-  │                  │  1. bearer token   │  claude-connect   │
-  │  Claude picks    │ ──────────────────>│  (MCP server)     │
-  │  the right git   │                    │                   │
-  │  tools to answer │                    │  2. runs git      │
-  │  your question   │  3. raw git output │     commands      │
-  │                  │ <──────────────────│     (read-only)   │
-  │  4. summarizes   │                    │                   │
-  │     the output   │                    │  Only shares dirs │
-  │     for you      │                    │  Joe configured   │
+  │  Claude Code     │  1. bearer token   │  claude-connect   │
+  │  (MCP client)    │ ──────────────────>│  (MCP server)     │
+  │                  │                    │                   │
+  │  Claude picks    │                    │  2. runs git      │
+  │  the right git   │  3. raw git output │     commands      │
+  │  tools to answer │ <──────────────────│     (read-only)   │
+  │  your question   │                    │                   │
+  │                  │                    │  Only shares dirs │
+  │  4. summarizes   │                    │  Joe configured   │
+  │     for you      │                    │                   │
   └──────────────────┘                    └──────────────────┘
 ```
 
