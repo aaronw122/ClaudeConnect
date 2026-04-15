@@ -27,16 +27,18 @@ You ask "what is Joe working on?" -- your Claude calls `git_status`, `git_diff`,
 
 - [Tailscale](https://tailscale.com) (recommended) — makes machines reachable to each other from anywhere. Free for personal use. If both machines are on the same WiFi, Tailscale isn't required.
 
+## Setup
+
+Both people do the same two steps.
+
+### Step 1. Install brew package
+
 ```bash
 brew tap aaronw122/tap
 brew install claude-connect
 ```
 
-## Setup
-
-Both people do the same two steps.
-
-### Step 1. Initialize
+### Step 2. Initialize
 
 ```bash
 claude-connect init --share ~/code/my-project
@@ -46,7 +48,7 @@ Peers can only see git data from the directories you choose to share here — no
 
 This creates your config, starts the server in the background (auto-starts on login), and prints a command to send your peer.
 
-### Step 2. Run the command your peer sent you
+### Step 3. Run the command your peer sent you
 
 ```bash
 claude-connect add-peer joe \
