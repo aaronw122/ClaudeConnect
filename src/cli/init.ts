@@ -166,9 +166,7 @@ notifications: true
 
   console.log("\n─────────────────────────────────────────────────────");
   console.log("Send this to your peer:\n");
-  console.log(`  claude-connect add-peer [your-name] \\`);
-  console.log(`    --host ${peerHost}:${port} \\`);
-  console.log(`    --token ${token}\n`);
+  console.log(`  claude-connect add-peer [your-name] --host ${peerHost}:${port} --token ${token}\n`);
   console.log("  Replace [your-name] with whatever you want them to see.");
   if (!tailscaleIp) {
     console.log("  Using local hostname — peers must be on the same network.");

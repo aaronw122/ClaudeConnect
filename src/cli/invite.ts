@@ -61,9 +61,7 @@ export function runInvite(args: string[]) {
   console.log(`Added peer "${name}" to config.\n`);
   console.log("─────────────────────────────────────────────────────");
   console.log(`Send this to ${name}:\n`);
-  console.log(`  claude-connect add-peer [your-name] \\`);
-  console.log(`    --host ${peerHost}:${port} \\`);
-  console.log(`    --token ${token}\n`);
+  console.log(`  claude-connect add-peer [your-name] --host ${peerHost}:${port} --token ${token}\n`);
   console.log("  Replace [your-name] with whatever you want them to see.");
   console.log("─────────────────────────────────────────────────────");
 }
