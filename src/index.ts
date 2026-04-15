@@ -7,6 +7,7 @@ import { runPause } from "./cli/pause.js";
 import { runResume } from "./cli/resume.js";
 import { runStatus } from "./cli/status.js";
 import { runAddPeer } from "./cli/add-peer.js";
+import { runInvite } from "./cli/invite.js";
 
 const command = process.argv[2];
 const args = process.argv.slice(3);
@@ -31,6 +32,10 @@ switch (command) {
     runAddPeer(args);
     break;
 
+  case "invite":
+    runInvite(args);
+    break;
+
   case "pause":
     runPause();
     break;
@@ -47,9 +52,10 @@ switch (command) {
     console.log("Usage: claude-connect <command>");
     console.log("");
     console.log("Commands:");
-    console.log("  init       Generate config and tokens");
-    console.log("  serve      Start the MCP server");
-    console.log("  add-peer   Add a peer's server to your MCP config");
+    console.log("  init       Generate config and start server");
+    console.log("  invite     Generate a token and invite a new peer");
+    console.log("  add-peer   Add a peer's server to your Claude Code");
+    console.log("  serve      Start the MCP server (foreground)");
     console.log("  pause      Stop accepting peer queries");
     console.log("  resume     Start accepting peer queries again");
     console.log("  status     Show server status");

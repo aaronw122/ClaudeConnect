@@ -62,6 +62,26 @@ Once set up, just talk to Claude naturally in Claude Code:
 
 Claude sees your peer's MCP tools, calls `git_status`, `git_diff`, `git_log` etc. on their server, and gives you a summary. No special syntax needed.
 
+## Adding an additional peer
+
+Only run `init` once — running it again will wipe your config. To add a new peer:
+
+```bash
+bunx claude-connect invite conor
+```
+
+This generates a new token for Conor, adds it to your config, and prints the `add-peer` command to send them. Your existing peers and directories are untouched.
+
+When Conor sends you their command, run it:
+
+```bash
+bunx claude-connect add-peer conor \
+  --host Conors-MacBook-Pro.local:8767 \
+  --token ...
+```
+
+Both directions are live.
+
 ## Pause / Resume
 
 ```bash
@@ -70,7 +90,7 @@ bunx claude-connect resume    # start accepting again
 bunx claude-connect status    # check if running/paused
 ```
 
-Peers will see "server is paused" until you resume. Or just kill the `serve` process to go fully offline.
+Peers will see "server is paused" until you resume.
 
 ## Networking
 
@@ -112,9 +132,9 @@ If a token is compromised, the attacker can only read git data from your configu
 
 | Command | Description |
 |---------|-------------|
-| `bunx claude-connect init` | Generate config and tokens |
-| `bunx claude-connect serve` | Start the MCP server |
-| `bunx claude-connect add-peer` | Add a peer's server to your Claude Code |
+| `bunx claude-connect init` | First-time setup — generates config, starts server |
+| `bunx claude-connect invite <name>` | Generate a token and invite a new peer |
+| `bunx claude-connect add-peer <name>` | Add a peer's server to your Claude Code |
 | `bunx claude-connect pause` | Temporarily stop accepting queries |
 | `bunx claude-connect resume` | Resume accepting queries |
 | `bunx claude-connect status` | Show server state |
