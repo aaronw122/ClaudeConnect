@@ -1,2 +1,6 @@
 conversations/
 notes/
+node_modules/
+dist/
+bun.lock
+.DS_Store

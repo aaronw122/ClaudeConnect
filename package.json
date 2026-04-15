@@ -1,0 +1,19 @@
+{
+  "name": "claude-connect",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "claude-connect": "./src/index.ts"
+  },
+  "scripts": {
+    "start": "bun run src/index.ts serve",
+    "dev": "bun run --watch src/index.ts serve"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "yaml": "^2.7.1"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.12"
+  }
+}
