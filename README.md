@@ -16,10 +16,7 @@ An MCP server that exposes read-only git commands to trusted peers. Ask your Cla
   │  Claude picks     │  2. raw git output │  runs git cmds    │
   │  the right git    │ <──────────────────│  (read-only)      │
   │  tools to answer  │                    │                   │
-  │  your question    │                    │  only shares dirs │
-  │                   │                    │  Joe configured   │
-  │  3. summarizes    │                    │                   │
-  │     for you       │                    │                   │
+  │  your question    │                    │                   │
   └───────────────────┘                    └───────────────────┘
 ```
 
