@@ -4,24 +4,29 @@ An MCP server that exposes read-only git commands to trusted peers. Ask your Cla
 
 ## How it works
 
-Your Claude connects to a peer's Claude Connect server, calls git tools, and synthesizes answers locally. No AI runs on the server -- it's a git command proxy.
-
 ```
-     Your Machine                 Peer's Machine
-  +-----------------------+    +-----------------------+
-  |  Claude Code          |    |  claude-connect       |
-  |  (MCP client)         |--->|  (MCP server)         |
-  |                       |<---|                       |
-  |  claude-connect       |    |  Claude Code          |
-  |  (MCP server)         |<---|  (MCP client)         |
-  |                       |--->|                       |
-  +-----------------------+    +-----------------------+
+  You: "What is Joe working on?"
 
-  Both machines run the same thing.
-  Both can query each other.
+  Your Claude Code                         Joe's Machine
+  ┌──────────────────┐                    ┌──────────────────┐
+  │                  │  1. authenticate   │  claude-connect   │
+  │  "What is Joe    │ ──────────────────>│  (MCP server)     │
+  │   working on?"   │    bearer token    │                   │
+  │                  │                    │  2. run git       │
+  │                  │  3. raw git output │     commands      │
+  │                  │ <──────────────────│     (read-only)   │
+  │  4. Claude reads │                    │                   │
+  │     git output,  │                    │  Only shares dirs │
+  │     gives you    │                    │  Joe configured   │
+  │     a summary    │                    │                   │
+  └──────────────────┘                    └──────────────────┘
 ```
 
-You ask "what is Joe working on?" -- your Claude calls `git_status`, `git_diff`, `git_log` on Joe's server, reads the output, and gives you a summary. Joe gets a notification.
+- **No AI on the server** — Joe's machine just runs git commands and returns text. Your Claude does all the thinking.
+- **Nothing stored** — git output passes through memory and is gone. No logs, no database, no history.
+- **Scoped to chosen directories** — Joe decides exactly which repos to share. Nothing else on his machine is accessible.
+- **Token authenticated** — each peer gets a unique token. No token, no access.
+- **Both directions** — Joe runs the same setup, and he can query you too.
 
 ## Setup
 
