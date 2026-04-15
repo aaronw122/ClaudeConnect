@@ -7,22 +7,16 @@ An MCP server that exposes read-only git commands to trusted peers. Ask your Cla
 ```
   You: "What is Joe working on?"
 
-  Your Machine (client)                          Joe's Machine (server)
-  ┌─────────────────────────┐                   ┌─────────────────────────┐
-  │                         │                   │                         │
-  │  Claude Code            │                   │  claude-connect         │
-  │  (MCP client)           │                   │  (MCP server)           │
-  │                         │                   │                         │
-  │  Claude picks the       │                   │  runs read-only         │
-  │  right git tools        │                   │  git commands           │
-  │  to answer your         │                   │                         │
-  │  question               │  1. bearer token  │                         │
-  │                         │ ────────────────> │                         │
-  │                         │                   │                         │
-  │                         │  2. git output    │                         │
-  │                         │ <──────────────── │                         │
-  │                         │                   │                         │
-  └─────────────────────────┘                   └─────────────────────────┘
+  Your Machine (client)                           Joe's Machine (server)
+  ┌──────────────────────────┐                   ┌──────────────────────────┐
+  │ Claude Code (MCP client) │                   │ claude-connect (server)  │
+  │                          │                   │                          │
+  │ Claude picks the right   │  1. bearer token  │ runs read-only           │
+  │ git tools to answer      │ ────────────────> │ git commands             │
+  │ your question            │                   │                          │
+  │                          │  2. git output    │                          │
+  │                          │ <──────────────── │                          │
+  └──────────────────────────┘                   └──────────────────────────┘
 ```
 
 - **No AI on the server** — Joe's machine just runs git commands and returns text. Your Claude does all the thinking.
