@@ -6,6 +6,8 @@ import { spawnSync } from "node:child_process";
 
 const CONFIG_DIR = resolve(homedir(), ".claude-connect");
 const CONFIG_PATH = resolve(CONFIG_DIR, "config.yaml");
+const PLIST_LABEL = "com.claude-connect.server";
+const PLIST_PATH = resolve(homedir(), "Library", "LaunchAgents", `${PLIST_LABEL}.plist`);
 
 function getLocalIp(): string | null {
   const nets = networkInterfaces();
@@ -38,8 +40,50 @@ function getTailscaleHostname(): string | null {
   return null;
 }
 
+function getBunPath(): string {
+  const result = spawnSync("which", ["bun"], { timeout: 3000 });
+  if (result.status === 0) return result.stdout.toString().trim();
+  return "/opt/homebrew/bin/bun";
+}
+
 function resolvePath(p: string): string {
   return p.startsWith("~/") ? resolve(homedir(), p.slice(2)) : resolve(p);
+}
+
+function installLaunchAgent(indexPath: string) {
+  const bunPath = getBunPath();
+
+  const plist = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>${PLIST_LABEL}</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>${bunPath}</string>
+    <string>run</string>
+    <string>${indexPath}</string>
+    <string>serve</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>${CONFIG_DIR}/server.log</string>
+  <key>StandardErrorPath</key>
+  <string>${CONFIG_DIR}/server.log</string>
+</dict>
+</plist>`;
+
+  mkdirSync(resolve(homedir(), "Library", "LaunchAgents"), { recursive: true });
+  writeFileSync(PLIST_PATH, plist, "utf-8");
+
+  // Load the agent
+  spawnSync("launchctl", ["unload", PLIST_PATH], { timeout: 5000 });
+  const result = spawnSync("launchctl", ["load", PLIST_PATH], { timeout: 5000 });
+  return result.status === 0;
 }
 
 export function runInit(args: string[]) {
@@ -90,10 +134,14 @@ notifications: true
 
   writeFileSync(CONFIG_PATH, config, { encoding: "utf-8", mode: 0o600 });
 
+  // Install and start LaunchAgent
+  const indexPath = resolve(__dirname, "..", "index.ts");
+  const serverStarted = installLaunchAgent(indexPath);
+
   const host = hostname();
-  const localIp = getLocalIp();
   const tailscaleHost = getTailscaleHostname();
   const tailscaleIp = getTailscaleIp();
+  const localIp = getLocalIp();
   const peerHost = tailscaleHost ?? `${host}.local`;
 
   console.log("Claude Connect initialized!\n");
@@ -102,6 +150,11 @@ notifications: true
     console.log(`Sharing: ${dirs.map(d => d.name).join(", ")}`);
   } else {
     console.log("No directories shared yet — edit config to add some.");
+  }
+  if (serverStarted) {
+    console.log(`Server: running on port ${port} (auto-starts on login)`);
+  } else {
+    console.log(`Server: failed to start — run "bunx claude-connect serve" manually`);
   }
 
   console.log("\nYour addresses:");

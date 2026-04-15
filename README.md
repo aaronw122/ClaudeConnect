@@ -30,15 +30,15 @@ You ask "what is Joe working on?" -- your Claude calls `git_status`, `git_diff`,
 
 ## Setup
 
-Both people do the same three steps.
+Both people do the same two steps.
 
-### Step 1. Initialize and share your directories
+### Step 1. Initialize
 
 ```bash
 bunx claude-connect init --share ~/code/my-project
 ```
 
-This prints a command to send your peer. Copy it and DM it to them.
+This creates your config, starts the server in the background (auto-starts on login), and prints a command to send your peer.
 
 ### Step 2. Run the command your peer sent you
 
@@ -48,15 +48,19 @@ bunx claude-connect add-peer joe \
   --token d4e5f6...
 ```
 
-This adds their server to your Claude Code config automatically.
+That's it. Both directions are live.
 
-### Step 3. Start the server
+## Usage
 
-```bash
-bunx claude-connect serve
+Once set up, just talk to Claude naturally in Claude Code:
+
+```
+"What is Joe working on?"
+"Will my changes conflict with Joe's?"
+"What has Joe changed in the api project today?"
 ```
 
-That's it. Ask Claude "what is Joe working on?" and it just works.
+Claude sees your peer's MCP tools, calls `git_status`, `git_diff`, `git_log` etc. on their server, and gives you a summary. No special syntax needed.
 
 ## Pause / Resume
 
@@ -141,14 +145,16 @@ notifications: true
 ## Uninstall
 
 ```bash
-# Remove your config and tokens
+# Stop and remove the background server
+launchctl unload ~/Library/LaunchAgents/com.claude-connect.server.plist
+rm ~/Library/LaunchAgents/com.claude-connect.server.plist
+
+# Remove config and tokens
 rm -rf ~/.claude-connect
 
-# Remove peer entries from your Claude Code MCP config
+# Remove peer entries from Claude Code
 # Edit ~/.claude/.mcp.json and delete the peer entries under "mcpServers"
 ```
-
-That's it. No global packages, no daemons, nothing else to clean up.
 
 ## License
 
