@@ -7,7 +7,7 @@ An MCP server that exposes read-only git commands to trusted peers. Ask your Cla
 ```
   You: "What is Joe working on?"
 
-  Your Machine (client)                           Joe's Machine (server)
+  Your Machine - client                            Joe's Machine - server
   ┌──────────────────────────┐                   ┌──────────────────────────┐
   │ Claude Code (MCP client) │                   │ claude-connect (server)  │
   │                          │                   │                          │
