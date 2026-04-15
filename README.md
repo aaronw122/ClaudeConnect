@@ -96,11 +96,13 @@ Peers will see "server is paused" until you resume.
 
 ## Networking
 
-Both machines need to reach each other over the network.
+Both machines need to reach each other over the network. The `init` command shows all your available addresses — give different peers whichever one works for them.
 
-**With Tailscale (recommended)** — If you have [Tailscale](https://tailscale.com) installed, it just works. Every machine on your tailnet gets a stable hostname reachable from anywhere, encrypted end-to-end. Your `init` output will use your machine's hostname, and your peer can connect from any network. Free for personal use, 2-minute setup.
+**With Tailscale (recommended)** — Both peers need [Tailscale](https://tailscale.com) installed and on the same tailnet. Give your peer your Tailscale IP (100.x.x.x). Works from anywhere, encrypted end-to-end. Free for personal use.
 
-**Same WiFi without Tailscale** — Use your Mac's `.local` hostname (e.g., `Aarons-MacBook-Pro.local:8767`). Works out of the box, stays stable even if your IP changes. Limited to devices on the same network.
+**Same WiFi** — No Tailscale needed. Give your peer your `.local` hostname (e.g., `Aarons-MacBook-Pro.local:8767`). Only works on the same network.
+
+You can mix and match — give Joe your Tailscale IP and Conor your local address. The server accepts connections on all interfaces.
 
 ## What peers can see
 
