@@ -1,314 +1,276 @@
 ---
-title: "Claude Connect — Implementation Plan"
+title: "Claude Connect — Implementation Plan (MCP)"
 source: docs/intents/claude-connect.md
-version: 2
+version: 4
 created: 2026-04-01
+updated: 2026-04-14
 ---
 
 # Claude Connect — Implementation Plan
 
 ## 1. Architecture Overview
 
-Claude Connect consists of three artifacts:
+Claude Connect is an MCP server that exposes read-only git commands as tools. Peers add it as a remote MCP server in their Claude Code config and query it natively.
 
-| Artifact | Location | Purpose |
-|---|---|---|
-| **Skill file** | `~/.claude/skills/claude-connect/SKILL.md` | Instructs the local AI how to interpret peer queries, read config, build SSH commands, parse responses, and synthesize answers |
-| **Config file** | `~/.claude-connect/peers.yaml` | Declares peers (SSH targets) and their queryable repos |
-| **Remote runner script** | `~/.claude-connect/remote-query.sh` | Thin shell script on the remote machine — detects installed CLI, enforces read-only sandboxing, validates repo allowlist, runs the query, emits summary to stdout |
-
-### Data flow
+Everyone runs the same thing. Each machine is both a server (answering queries) and a client (querying peers via Claude Code).
 
 ```
-Local AI (your machine)
-  │
-  ├─ 1. Parse natural language → identify peer + query type
-  ├─ 2. Read ~/.claude-connect/peers.yaml → resolve SSH target + repo path
-  ├─ 3. (If conflict query) Gather local git context: branch, diff --stat, changed files/functions
-  ├─ 4. SSH into peer machine:
-  │      echo "$PROMPT" | ssh <user>@<host> "~/.claude-connect/remote-query.sh <repo_path>"
-  │      └─ remote-query.sh:
-  │           ├─ Validate repo_path is in peers.yaml allowlist
-  │           ├─ cd into repo
-  │           ├─ Detect installed CLI (claude, codex, gemini)
-  │           ├─ Invoke CLI in read-only headless mode with project-scoped sandbox
-  │           ├─ Read prompt from stdin (including local context if conflict query)
-  │           └─ Emit summary to stdout
-  ├─ 5. Capture SSH stdout (the summary)
-  └─ 6. Synthesize final answer for the user
+     Aaron's Machine                Joe's Machine
+  ┌────────────────────┐         ┌────────────────────┐
+  │  claude-connect    │◄────────│  Claude Code       │
+  │  (MCP server)      │────────►│  (MCP client)      │
+  │                    │         │                    │
+  │  Claude Code       │         │  claude-connect    │
+  │  (MCP client)      │────────►│  (MCP server)      │
+  │                    │◄────────│                    │
+  └────────────────────┘         └────────────────────┘
+
+  Both machines run the same thing.
+  Both can query each other.
 ```
+
+Setup: `bunx claude-connect` on each machine. Exchange tokens. Done.
+
+### Artifacts
+
+| Artifact                                          | Purpose                                                |
+| ------------------------------------------------- | ------------------------------------------------------ |
+| **MCP server** (`claude-connect`)                 | Bun server exposing git tools over Streamable HTTP |
+| **Config file** (`~/.claude-connect/config.yaml`) | Declares shared directories and peer tokens            |
+| **npm package**                                   | `bunx claude-connect` to start the server               |
+
+### What the server does (exhaustive)
+
+1. Accept MCP connections over Streamable HTTP
+2. Authenticate via bearer token (matched against config)
+3. Receive tool calls for whitelisted git commands
+4. Validate the target directory is in the configured allow list (realpath to prevent traversal)
+5. Run the git command as a subprocess
+6. Return stdout
+7. Fire a macOS notification ("Aaron queried project-name")
+
+That's it. No AI, no storage, no state.
+
+### CLI commands
+
+```
+bunx claude-connect init      → generate config + tokens
+bunx claude-connect serve     → start the server
+bunx claude-connect pause     → stop accepting peer queries
+bunx claude-connect resume    → start accepting again
+bunx claude-connect status    → show if running/paused + recent queries
+```
+
+Pause/resume is a flag file (`~/.claude-connect/.paused`). Server checks on each request.
+
+**Network requirement:** Direct network connectivity between peers is required (LAN, Tailscale, VPN, or public IP).
 
 ## 2. Detailed Design
 
-### 2.1 Config file: `~/.claude-connect/peers.yaml`
+### 2.1 MCP Tools
+
+Six tools, mapping 1:1 to read-only git commands:
+
+| Tool | Git Command | Description |
+|---|---|---|
+| `git_status` | `git status --porcelain` | Working tree state |
+| `git_diff` | `git diff [--staged]` | Uncommitted changes |
+| `git_log` | `git log --oneline -n <N>` | Recent commits |
+| `git_branch` | `git branch -a` | All branches |
+| `git_show` | `git show <ref>:<path>` | File contents at a commit |
+| `git_ls_files` | `git ls-files` | Tracked files list |
+
+Each tool accepts:
+- `directory` (required) — which configured directory to operate on (by name, not path)
+- Tool-specific args (e.g., `n` for log count, `ref` for show, `staged` bool for diff)
+
+A meta tool for discovery:
+| Tool | Description |
+|---|---|
+| `list_directories` | Returns the names of configured shared directories (not paths) |
+
+### 2.2 Config File: `~/.claude-connect/config.yaml`
 
 ```yaml
-# ~/.claude-connect/peers.yaml
+server:
+  port: 8767
+
+directories:
+  - name: webapp          # exposed name (peers see this, not the path)
+    path: ~/code/webapp
+  - name: api
+    path: ~/code/api-service
+
 peers:
+  aaron:
+    token: "randomly-generated-shared-secret"
   conor:
-    host: conor@conors-mbp.tailnet   # SSH target
-    repos:
-      - name: webapp
-        path: /Users/conor/code/webapp
-      - name: api
-        path: /Users/conor/code/api-service
+    token: "another-shared-secret"
 
-# Which of MY repos are queryable by peers (inbound queries)
-local:
-  repos:
-    - name: webapp
-      path: /Users/aaron/code/webapp
-    - name: api
-      path: /Users/aaron/code/api-service
+notifications: true       # macOS notifications on/off
 ```
 
-The `local` block is consumed by the remote runner script to validate inbound queries (E5).
+**Key decisions:**
+- Peers see directory **names**, not filesystem paths (no path leakage)
+- Tokens are simple shared secrets — generated during setup, exchanged out-of-band
+- One config file, flat structure, easy to audit
 
-### 2.2 Remote runner script: `~/.claude-connect/remote-query.sh`
+### 2.3 Authentication
 
-This script is the security boundary. It runs on the remote machine.
+Bearer token in the HTTP header:
 
-**Inputs:**
-1. `REPO_PATH` — positional arg: absolute path to the project directory
-2. `PROMPT` — read from stdin (avoids shell interpretation on the remote side)
+```
+Authorization: Bearer <token>
+```
 
-**Logic:**
-1. Validate `REPO_PATH` exists in `~/.claude-connect/peers.yaml` under `local.repos[].path` — reject if not listed (E5)
-2. Validate `REPO_PATH` is a git repository
-3. `cd` into `REPO_PATH`
-4. Detect which CLI is available (`command -v claude`, `command -v codex`, `command -v gemini` in preference order)
-5. Invoke the detected CLI in read-only headless mode:
+Server matches against `peers[].token` in config. Unmatched → 401, connection refused.
 
-**Claude Code:**
+**Why shared secrets over something fancier:**
+- Zero infrastructure (no CA, no OAuth provider)
+- Peer count is small (2-10 people)
+- Easy to rotate (change the token in both configs)
+- The threat model is "stranger finds the port," not "nation-state actor" — a random 256-bit token is more than sufficient
+
+### 2.4 Directory Validation
+
+On every tool call:
+1. Resolve `directory` name → filesystem path via config
+2. `realpath` the target to prevent symlink/traversal attacks
+3. Verify the resolved path starts with the configured path
+4. Verify it's a git repository (`git rev-parse --git-dir`)
+5. Reject with clear error if any check fails
+
+### 2.5 Git Argument Sanitization
+
+All git commands are invoked via `spawn()`/`execFile()` with arguments passed as an array — never string concatenation or shell interpolation. This is essential to the "no shell, no exec" security claim in section 3.
+
+**Argument construction rules:**
+- `--` separator between git options and any user-supplied path/ref arguments
+- `ref` parameter validated against pattern: `/^[a-zA-Z0-9\/.\-_:]+$/` (alphanumeric + `/.-_:` only)
+- `n` parameter validated as a positive integer
+- `path` parameter validated against directory scope (see 2.4)
+
+**Environment sanitization:**
+The following environment variables are stripped from the child process environment to prevent injecting commands via git's subprocess delegation:
+- `GIT_SSH_COMMAND`
+- `GIT_EXTERNAL_DIFF`
+- `GIT_PAGER`
+- `GIT_EDITOR`
+
+### 2.6 macOS Notifications
+
+On each incoming query, fire via `osascript`:
+
 ```bash
-PROMPT=$(cat)  # read from stdin
-claude --bare -p "$PROMPT" \
-  --allowedTools "Bash(git status),Bash(git diff),Bash(git log),Bash(git branch),Bash(git show),Bash(git ls-files)" \
-  --permission-mode plan
+osascript -e 'display notification "queried webapp" with title "Claude Connect" subtitle "aaron"'
 ```
 
-> **Note:** Only git read commands are allowlisted — no Read, Glob, or Grep.
-> This structurally prevents the remote AI from reading files outside the repo,
-> even under prompt injection (E10).
+- Non-blocking (fire and forget)
+- Shows: peer name + directory name
+- Configurable on/off in config
+- Linux: fall back to `notify-send` if available, otherwise skip silently
 
-**Codex:**
-```bash
-codex exec --sandbox read-only -C "$REPO_PATH" "$PROMPT"
+### 2.7 Client-Side Setup
+
+The querier adds the peer's server to their MCP config. In Claude Code's `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "joe": {
+      "type": "http",
+      "url": "http://joes-machine:8767/mcp",
+      "headers": {
+        "Authorization": "Bearer <token-joe-gave-you>"
+      }
+    }
+  }
+}
 ```
 
-**Gemini:**
-```bash
-cd "$REPO_PATH" && gemini --approval-mode plan -p "$PROMPT"
-```
+Then Claude Code can call `mcp__joe__git_status`, `mcp__joe__git_diff`, etc. natively. No skill file needed for the query protocol — Claude already knows how to call MCP tools and interpret git output.
 
-6. Capture stdout, emit it. Stderr is suppressed or logged locally.
+## 3. Security Model
 
-**Security properties:**
-- `--allowedTools` (Claude) structurally allowlists only git read commands — no filesystem tools (Read/Glob/Grep), so the remote AI cannot access files outside the repo even under prompt injection (E9, E10)
-- `--permission-mode plan` (Claude) adds a second enforcement layer
-- `--sandbox read-only` (Codex) provides kernel-level read-only sandboxing (E9)
-- Script refuses to operate outside configured repos (E5, E10)
-- Only stdout text crosses SSH — no file transfer in the protocol (E3)
-- Max response size (4KB) as heuristic guard against raw source leakage (E3)
+### Sandboxing guarantees
 
-### 2.3 Skill file: `SKILL.md`
+1. **Code-level whitelist**: The server only implements 6 git commands + 1 discovery tool. There is no `exec()`, no shell, no filesystem API. The attack surface is the surface of those 7 functions.
+2. **Directory scoping**: Every tool call validates against the config allow list with realpath resolution.
+3. **Auth gate**: Unauthenticated requests never reach tool handlers.
+4. **Ephemeral**: No state, no logs, no database. Nothing to exfiltrate beyond the current git command's stdout.
+5. **Open source**: Anyone can read the server in 10 minutes and verify these properties.
 
-The skill teaches the local AI the full query protocol:
+### What if someone steals a peer token?
 
-1. **Trigger detection** — recognize "ask [peer]...", "what is [peer] working on", "will my changes conflict with [peer]'s", etc.
-2. **Config reading** — parse `~/.claude-connect/peers.yaml`
-3. **Query type routing:**
-   - **Status query** ("what is X working on?") — simple remote invocation, no local context needed
-   - **Conflict query** ("will my changes conflict?") — gather local git state first, send as context
-4. **SSH command construction** — build and execute the SSH command
-5. **Error handling** — graceful failures for SSH errors, missing CLI, offline peer, non-configured repo (E4)
-6. **Response synthesis** — interpret the remote summary and present to user
+They can run `git status`, `git diff`, `git log`, `git branch`, `git show`, and `git ls-files` on your configured directories. That's it. They cannot:
+- Get a shell
+- Read files outside configured directories
+- Write anything
+- Access non-git data (.env, credentials, anything in .gitignore)
+- Pivot to other services
 
-> **Reverse prompt injection mitigation (M3):** The skill must wrap remote
-> responses in delimiters (e.g., `<remote-response>...</remote-response>`) and
-> instruct the local AI to treat the enclosed content as **data, not instructions**.
-> This prevents a compromised or malicious remote response from hijacking the
-> local AI's behavior.
+Rotate the token in both configs to revoke.
 
-### 2.4 Prompt templates
+## 4. Execution Phases
 
-**Status query (sent to remote AI):**
-```
-Analyze the current git state of this repository. Report:
-1. Current branch name
-2. Summary of uncommitted changes (staged and unstaged) — describe the apparent intent, not raw diffs
-3. Recent commit messages on this branch (last 3-5)
-4. Overall assessment of what the developer appears to be working on
+### Phase 1: MCP Server Core
+- Project scaffold (TypeScript + Bun, `@modelcontextprotocol/sdk`)
+- Implement the 7 tool handlers
+- Config file parsing
+- Directory validation with realpath
+- Bearer token authentication
+- Streamable HTTP transport
 
-Be concise. Do not include raw file contents or full diffs.
-```
+### Phase 2: Notifications + Polish
+- macOS notification on incoming queries
+- Linux `notify-send` fallback
+- Error messages (auth failure, invalid directory, not a git repo)
+- Response size cap (safety heuristic)
 
-**Conflict query (sent to remote AI):**
-```
-A remote collaborator is working on changes that touch these areas:
+### Phase 3: Setup + Distribution
+- `bunx claude-connect init` — generate config with random tokens
+- `bunx claude-connect serve` — start the server
+- `bunx claude-connect pause/resume/status` — runtime control
+- Setup instructions for exchanging tokens and adding MCP config
+- README with security model explanation
 
-<local_context>
-Branch: {branch}
-Changed files:
-{file_summary_with_intent}
-</local_context>
+### Phase 4: Validation
+- Test each tool against real repos
+- Test directory scoping (attempt traversal, expect rejection)
+- Test auth (no token, wrong token, correct token)
+- Test from Claude Code as MCP client end-to-end
 
-Analyze this repository's current git state and determine:
-1. Are there uncommitted changes that touch the same files?
-2. Are there changes to the same functions or types, even in different files?
-3. Are there logical conflicts — changes that would be semantically incompatible even if they merge cleanly?
+**Parallelizable:** Phase 1 is the core. Phases 2-3 can proceed in parallel after Phase 1 is complete.
 
-Report findings with specific file and function names. Be concise. Do not include raw file contents.
-```
+## 5. ENSURE Validation Matrix
 
-## 3. Execution Phases
-
-### Phase 0: Scaffold (no dependencies)
-- Create `~/.claude-connect/` directory structure
-- Create `peers.yaml` with documented schema and example
-- Stub `remote-query.sh`
-
-### Phase 1: Remote runner script (depends on Phase 0)
-- Implement CLI detection logic (claude → codex → gemini)
-- Implement repo allowlist validation against `peers.yaml` `local` block
-- Implement read-only invocation per CLI with sandboxing flags
-- Error handling: missing CLI, invalid repo, CLI failure
-- `--help` flag for self-documentation
-
-### Phase 2: Skill file (depends on Phase 0, parallel with Phase 1)
-- Write SKILL.md frontmatter and trigger description
-- Config parsing instructions
-- Status query flow
-- Conflict query flow (with local git context gathering)
-
-### Phase 3: Error handling and edge cases (depends on 1, 2)
-- SSH failures (timeout, auth, unreachable)
-- Remote CLI not found
-- Non-configured repo rejection
-- Empty/malformed response
-- First-time peer confirmation (TRUST[ask])
-
-### Phase 4: Cross-CLI validation (depends on 1, 2)
-- Test each CLI path on remote
-- Verify read-only enforcement per CLI
-- Verify directory scoping per CLI
-
-**Parallelizable:** Phase 1 (runner script) and Phase 2 (skill file) can proceed in parallel once Phase 0 is done.
-
-## 4. ENSURE Validation Matrix
-
-| ID | Validation Strategy |
+| ID | Validation |
 |---|---|
-| **E1** (status query <30s) | End-to-end timing test. Use `claude --bare` to skip startup overhead. SSH ControlMaster for connection reuse. |
-| **E2** (conflict detail) | Create known overlapping changes on two machines, verify response names specific files/functions. |
-| **E3** (no raw source) | Structural: only AI stdout crosses wire. Prompt instructs summaries only. 4KB max response heuristic in runner script. |
-| **E4** (graceful failure) | Test matrix: unreachable host, missing CLI, non-configured repo. Skill reports actionable error for each. |
-| **E5** (configured repos only) | Runner script checks against `local.repos`. Test: request unconfigured repo → rejected. Test path traversal. |
-| **E6** (any language) | Test against repos in 3+ languages. Only git commands used, no language-specific logic. |
-| **E7** (minimal setup) | Verify: SSH + CLI + peers.yaml + remote-query.sh. No package managers. |
-| **E8** (cross-model) | Test: local Claude → remote Codex. Local Claude → remote Gemini. Runner auto-detects CLI. |
-| **E9** (no writes) | Adversarial test: prompt remote AI to create files. Verify blocked by CLI flags. |
-| **E10** (no reads outside project) | Structurally enforced: Claude's `--allowedTools` permits only git commands (no Read/Glob/Grep), so filesystem access outside the repo is impossible. Adversarial test: prompt remote AI to read /etc/passwd — verify no tool available to do so. |
+| **E1** (fast response) | No AI on server — response time is git subprocess latency (~ms). Verify with timing. |
+| **E2** (conflict detail) | Create overlapping changes on two machines, query via Claude, verify file/function-level detail in Claude's synthesis. |
+| **E3** (read-only only) | Code audit: verify no shell exec, no fs write APIs, no git write commands in the 7 handlers. |
+| **E4** (directory scoping) | Test: request directory not in config → rejected. Attempt `../` traversal → rejected. Symlink to outside → rejected. |
+| **E5** (auth required) | Test: no token → 401. Wrong token → 401. Correct token → 200. |
+| **E6** (ephemeral) | Code audit: verify no file writes, no database, no logging to disk. |
+| **E7** (language agnostic) | Test against repos in 3+ languages. Only git commands, no language-specific logic. |
+| **E8** (auditable) | Line count. Target: <300 lines of server code. |
+| **E9** (notifications) | Verify macOS notification fires on query. Verify configurable off. |
+| **E10** (graceful failure) | Test: peer offline → Claude gets connection error and reports gracefully. |
 
-## 5. Risks and Mitigations
+## 6. Open Questions
 
-| Risk | Mitigation |
-|---|---|
-| SSH + AI cold start > 30s | `claude --bare`, SSH ControlMaster, consider `--model sonnet` for status queries |
-| Claude allowedTools incomplete | Use allowlist (not denylist), `--permission-mode plan` as second layer, adversarial testing |
-| Gemini plan mode write prevention unverified | Test empirically. Fall back to prompt-only with warning if insufficient |
-| peers.yaml missing on remote | Runner fails closed — reject all queries if config missing/unparseable |
-| AI includes code snippets in summary | 4KB response cap as heuristic. Strong prompt instructions. Imperfect but pragmatic |
-| YAML parsing by AI unreliable | Keep schema flat/simple. Runner script can expose `--list-repos` for self-reporting |
+1. **Port discovery**: Should peers exchange port numbers manually, or is there a discovery mechanism? (v1: manual, configured in MCP config)
+2. **Multiple repos**: Should one server instance serve multiple directories, or run separate instances? (Current plan: one server, multiple directories)
+3. **Rate limiting**: Worth adding to prevent abuse if a token is compromised? (Probably not for v1 given the small peer count)
+4. **TLS**: Should the server support HTTPS natively, or rely on the network layer (Tailscale already encrypts)? (v1: plain HTTP, rely on network encryption)
 
-## 6. Out of Scope (v1)
+## 7. Out of Scope (v1)
 
-- Multi-turn conversation between AIs (single-shot query/response only)
-- Auto-discovery of peers or repos
+- Per-command approval UI
+- Push notifications ("Joe's branch just changed")
+- Multi-turn conversation
+- Web UI / dashboard
+- Auto-discovery of peers
 - Background/scheduled queries
 - Streaming responses
-- Push notifications ("Conor's branch just changed")
-- Multi-repo queries in one shot
-- Web UI
-
-## 7. File Manifest
-
-```
-~/.claude/skills/claude-connect/
-  SKILL.md                    # The skill file (primary artifact)
-
-~/.claude-connect/
-  peers.yaml                  # Peer and repo configuration
-  remote-query.sh             # Remote runner script (on each peer)
-```
-
-Total: 3 files. No dependencies beyond SSH and a supported AI CLI.
-
-## 8. Setup Flow
-
-### Step 0: Network connectivity (both machines)
-
-You need SSH access between machines. Two options:
-
-**Option A: Tailscale (recommended)** — works through NATs, no port forwarding needed.
-
-```bash
-# On each machine:
-curl -fsSL https://tailscale.com/install.sh | sh
-tailscale up
-
-# Get your Tailscale hostname:
-tailscale status
-# Output shows: conors-mbp  100.x.x.x  ...
-
-# Share access: both users must be on the same Tailnet.
-# If different accounts, use Tailscale's node sharing:
-#   Owner sends invite from admin console → peer accepts.
-```
-
-**Option B: Direct SSH** — for same LAN or machines with public IPs / port forwarding.
-
-```bash
-# Find your local IP:
-ipconfig getifaddr en0        # macOS
-hostname -I                   # Linux
-
-# Ensure SSH is enabled:
-sudo systemsetup -setremotelogin on   # macOS
-sudo systemctl enable --now sshd      # Linux
-```
-
-**Set up SSH key auth (both options):**
-
-```bash
-# On YOUR machine, copy your key to the peer:
-ssh-copy-id conor@conors-mbp.tailnet    # Tailscale
-ssh-copy-id conor@192.168.1.50          # Direct
-
-# Verify — this must work before proceeding:
-ssh conor@conors-mbp.tailnet "echo connected"
-```
-
-If that prints `connected`, networking is done. If not, fix SSH before continuing.
-
-### Steps 1-5: Claude Connect setup
-
-1. Create `~/.claude-connect/peers.yaml` on your machine with peer SSH targets + repo paths
-2. Create `~/.claude-connect/peers.yaml` on each peer's machine with `local.repos` listing queryable repos
-3. Copy `remote-query.sh` to `~/.claude-connect/remote-query.sh` on each peer (via `scp`)
-4. Install the skill: `SKILL.md` → `~/.claude/skills/claude-connect/SKILL.md`
-5. Verify: `echo "what branch am I on?" | ssh peer@host "~/.claude-connect/remote-query.sh /path/to/repo"`
-
-## Discoveries
-
-1. **`claude --bare` is critical for remote invocations.** Skips hooks, plugins, CLAUDE.md discovery, keychain reads — all unnecessary for headless read-only queries. Major latency reduction toward E1's 30s target.
-
-2. **Codex has the strongest sandboxing.** `--sandbox read-only` is kernel-level enforcement, structurally stronger than Claude's tool-level restrictions. When available, Codex should be preferred for the remote side.
-
-3. **The remote runner script is architecturally necessary.** Inlining full CLI invocations with sandboxing flags into SSH commands creates quoting nightmares that differ per CLI. A shell script on the remote side absorbs this cleanly and is the right place to enforce the repo allowlist.
-
-4. **The config needs both `peers` and `local` blocks.** `peers` tells your machine where to SSH. `local` tells the remote runner which of its own repos are queryable. Both live in the same `peers.yaml`.
-
-5. **Conflict queries send YOUR diff summary over the wire.** The local AI serializes your changes into a summary and includes it in the remote prompt. This is your own changes (not the peer's source), so E3 is not violated.
-
-6. **Gemini's sandboxing needs empirical validation.** `--approval-mode plan` is documented as read-only but untested for write prevention. Treat as best-effort in v1.
+- Non-git data sources

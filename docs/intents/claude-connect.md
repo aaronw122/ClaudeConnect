@@ -1,86 +1,85 @@
 ---
 title: "Claude Connect"
 author: "human:aaron"
-version: 1
+version: 2
 created: 2026-04-01
+updated: 2026-04-14
 ---
 
 # Claude Connect
 
 ## WANT
 
-A skill that lets Claude instances on different machines query each other about uncommitted, in-progress work. You say "ask Conor what he's working on" or "will my auth changes conflict with what Conor's doing?" and your Claude:
+An open-source MCP server that exposes read-only git context to trusted peers. Your Claude connects to a teammate's server as an MCP client, runs git commands, and synthesizes answers locally.
 
-1. SSHs into the peer's machine
-2. Spawns a headless `claude -p` in the relevant project directory
-3. The remote Claude analyzes local git state (working tree, staged changes, branch context)
-4. Returns a summary back to your Claude, which synthesizes an answer
-
-No daemon, no cloud relay, no MCP server — just a skill file, SSH, and the Claude CLI on both ends.
-
-### Core queries (MVP)
-
-- **"What is [peer] working on?"** → Summary of their uncommitted changes, current branch, and apparent intent
-- **"Will my changes conflict with [peer]'s?"** → Semantic conflict analysis: file overlap, function overlap, logical incompatibilities — not just textual merge conflicts
+The core problem: standups are broken. AI-assisted development velocity is so high that daily syncs can't keep up. You need on-demand awareness of what teammates are doing and have done — not a scheduled ceremony.
 
 ### How it works
 
-- **Skill-based**: Lives as a skill in `.claude/skills/` — no plugin infrastructure, no MCP
-- **SSH transport**: Direct SSH to peer machines, no intermediary
-- **Headless AI on remote**: Spawns the appropriate CLI on the remote machine — `claude -p`, `codex exec`, `gemini`, etc. based on what the peer has installed
-- **Cross-model compatible**: Your Claude can talk to Conor's Codex, Gemini, or any SOTA CLI. The remote AI just needs to analyze local git state and return a summary — the model doesn't matter
-- **Summaries only**: The remote AI summarizes; raw file contents never cross the wire
-- **Git-aware**: Understands branches, working tree state, staged vs unstaged, recent commit context
+```
+You: "what is Joe working on?"
+  │
+  ├─ Your Claude connects to Joe's MCP server
+  ├─ Calls git_status, git_diff, git_log tools
+  ├─ Joe's server runs the git commands, returns stdout
+  ├─ Your Claude interprets the output and synthesizes an answer
+  └─ You get: "Joe is refactoring the auth middleware on feat/auth-v2..."
+```
+
+### Core properties
+
+- **MCP-native**: Claude Code already speaks MCP as a client. No custom protocol, no skill-based SSH orchestration.
+- **No AI on the server**: The server is a dumb git command proxy. All intelligence is on the querier's side.
+- **Ephemeral**: Nothing stored. Git command runs, stdout returns, gone. No logs, no cache, no database.
+- **Open source**: The server is ~100-200 lines of code. Fully auditable in minutes.
+- **Lightweight**: Idle memory is a few MB. Each query is a git subprocess that runs in milliseconds.
+
+### Core queries
+
+- **"What is [peer] working on?"** → Summary of their uncommitted changes, current branch, and apparent intent
+- **"Will my changes conflict with [peer]'s?"** → Semantic conflict analysis: file overlap, function overlap, logical incompatibilities
 
 ## DON'T
 
-- **No cloud relay or third-party services** — all communication is direct SSH peer-to-peer
-- **No always-on daemon** — nothing runs unless explicitly invoked
-- **No raw file contents over the wire** — only summaries and diffs cross machines
-- **No access to non-configured repos** — peers can only query projects explicitly listed in a config
-- **No automatic/background queries** — explicit invocation only (v1)
-
-### Remote sandboxing (hard guardrails)
-
-The remote AI instance is **strictly read-only** and **project-scoped**. Enforced via CLI tool restrictions, not just prompting:
-
-- **No file writes** — cannot create, edit, or delete any files
-- **No git mutations** — no commit, stash, checkout, reset, rebase, merge, push, pull, or any command that modifies git state
-- **No shell side effects** — no installs, no process management, no network calls, no destructive commands
-- **No filesystem access outside the configured project directory** — cannot read files above or outside the repo root
-- **Enforcement**: Use `--allowedTools` (Claude) / `--full-auto` scoping (Codex) / equivalent flags to structurally restrict the remote AI to read-only tools scoped to the project path. Prompt-level instructions are a secondary layer, not the primary enforcement
+- **No AI inference on the server** — it's a git command proxy, not an AI endpoint
+- **No data storage** — nothing persisted, nothing logged, fully ephemeral
+- **No per-command approval** — the tool whitelist IS the security; approving `git status` on a dir you chose to share is theater
+- **No cloud relay or third-party services** — direct peer-to-peer MCP connections
+- **No SSH key management** — no authorized_keys editing, no restricted keys
+- **No shell access** — the server exposes specific git tools, not a shell. There's no shell to misconfigure.
+- **No file writes** — all tools are read-only git commands
 
 ## LIKE
 
-- **SSH simplicity** — should feel as simple as SSH-ing to a friend's machine and asking a question
-- **Git-native context** — understands branches, diffs, and working tree state natively, not bolted on
-- **claude-peers-mcp scoping model** — the idea of configuring which repos are peerable and discoverable (adapted from [louislva/claude-peers-mcp](https://github.com/louislva/claude-peers-mcp), which solves the same-machine version of this)
+- **MCP protocol** — native transport, Claude Code already speaks it as a client
+- **macOS notification UX** — passive awareness ("Joe queried your repo at 3:42pm"), not approval gates
+- **The "window, not a key" model** — a service that serves specific data, vs giving someone access to your machine
 
 ## FOR
 
-- **Any remote collaborators** — dev pairs, small teams, open source contributors
-- **Environment**: Machines with SSH access to each other (direct, Tailscale, VPN, etc.) and at least one SOTA AI CLI installed (Claude, Codex, Gemini, etc.)
-- **Tech stack**: Shell/bash skill, no runtime dependencies beyond SSH and a supported AI CLI
-- **Repos**: Any git repository — language/framework agnostic
+- **Remote collaborators** — dev pairs, small teams, open source contributors
+- **Problem space**: High-velocity AI-assisted teams where daily standups can't keep up
+- **Environment**: Machines with network access to each other (same LAN, Tailscale, VPN, public IP)
+- **Tech stack**: Bun MCP server (TypeScript), distributed as npm package
+- **Client**: Any MCP-compatible AI CLI (Claude Code natively)
 
 ## ENSURE
 
-- **E1**: You can ask "what is [peer] working on?" and receive a meaningful summary of their uncommitted changes within 30 seconds
-- **E2**: You can ask "will my changes conflict with [peer]'s?" and receive a yes/no with specific file/function-level detail
-- **E3**: Raw source code never leaves the remote machine — only Claude-generated summaries cross the wire
-- **E4**: Queries fail gracefully when peer is offline, SSH fails, or Claude CLI isn't available on remote
-- **E5**: Only explicitly configured repos are queryable — a peer query to a non-configured repo is rejected
-- **E6**: Works with any git repo regardless of language or framework
-- **E7**: Setup requires only: SSH access, any supported AI CLI on both machines (Claude, Codex, Gemini), and a config file listing peers/repos
-- **E8**: Cross-model queries work — your Claude can query a peer running Codex or Gemini, and vice versa
-- **E9**: Remote AI cannot write files, mutate git state, or execute side-effecting commands — enforced via CLI tool restrictions, not just prompting
-- **E10**: Remote AI cannot read any files outside the configured project directory — path traversal above the repo root is blocked
+- **E1**: Status query returns a meaningful summary within seconds (no AI cold-start on server)
+- **E2**: Conflict queries return file/function-level detail
+- **E3**: Server only exposes read-only git commands — no file reads, no writes, no shell
+- **E4**: Only configured directories are queryable — requests outside configured paths are rejected
+- **E5**: Only authenticated peers can connect — unauthenticated requests are rejected
+- **E6**: Data is ephemeral — nothing stored at rest, ever
+- **E7**: Works with any git repo regardless of language or framework
+- **E8**: Open source and auditable — the entire server is readable in minutes
+- **E9**: macOS notifications provide passive awareness of incoming queries
+- **E10**: Graceful failure when peer is offline or unreachable
 
 ## TRUST
 
-- **[autonomous]** SSH into peer machine and spawn remote `claude -p`
-- **[autonomous]** Gather local git state (diff, status, branch, recent commits) on remote
-- **[autonomous]** Generate and return summaries of uncommitted work
-- **[autonomous]** Answer inbound peer queries about local configured repos
-- **[ask]** First-time connection to a new peer (confirm SSH target and identity)
-- **[ask]** Adding new repos to the peerable config
+- **[autonomous]** Run git read commands on configured directories when authenticated peer requests
+- **[autonomous]** Return git stdout to authenticated peer
+- **[autonomous]** Send macOS notification on incoming query
+- **[ask]** First-time peer configuration (adding a new peer's token/identity)
+- **[ask]** Adding new directories to the share list
