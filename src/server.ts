@@ -11,9 +11,9 @@ function authenticatePeer(authHeader: string | null, peers: Record<string, PeerC
   return null;
 }
 
-function createMcpServer(config: Config): McpServer {
+function createMcpServer(config: Config, peerName: string): McpServer {
   const server = new McpServer({ name: "claude-connect", version: "0.1.0" });
-  registerTools(server, config);
+  registerTools(server, config, peerName);
   return server;
 }
 
@@ -28,12 +28,13 @@ export function startServer(config: Config) {
         return new Response("Not found", { status: 404 });
 
       // Bearer token auth
-      if (!authenticatePeer(req.headers.get("authorization"), config.peers))
+      const peerName = authenticatePeer(req.headers.get("authorization"), config.peers);
+      if (!peerName)
         return new Response("Unauthorized", { status: 401 });
 
       // Stateless: new transport + server per request
       const transport = new WebStandardStreamableHTTPServerTransport();
-      const mcp = createMcpServer(config);
+      const mcp = createMcpServer(config, peerName);
       await mcp.connect(transport);
       return transport.handleRequest(req);
     },

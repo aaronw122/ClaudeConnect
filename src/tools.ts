@@ -3,6 +3,9 @@ import { z } from "zod";
 import type { Config } from "./config.js";
 import { validateDirectory, validateRef, validateN, sanitizedEnv } from "./validation.js";
 import { checkPaused } from "./pause.js";
+import { notify } from "./notifications.js";
+
+const MAX_RESPONSE_BYTES = 100 * 1024; // 100KB
 
 async function runGit(cwd: string, args: string[]): Promise<string> {
   const proc = Bun.spawn({ cmd: ["git", ...args], cwd, env: sanitizedEnv(), stdout: "pipe", stderr: "pipe" });
@@ -13,6 +16,15 @@ async function runGit(cwd: string, args: string[]): Promise<string> {
   return stdout;
 }
 
+/** Truncate output that exceeds the safety cap */
+function capOutput(output: string): string {
+  if (Buffer.byteLength(output, "utf-8") > MAX_RESPONSE_BYTES) {
+    const truncated = Buffer.from(output, "utf-8").subarray(0, MAX_RESPONSE_BYTES).toString("utf-8");
+    return truncated + "\n[output truncated at 100KB]";
+  }
+  return output;
+}
+
 async function precheck(directory: string, config: Config): Promise<string> {
   checkPaused();
   return validateDirectory(directory, config.directories);
@@ -20,13 +32,14 @@ async function precheck(directory: string, config: Config): Promise<string> {
 
 const dir = z.string().describe("Name of a configured project directory");
 
-export function registerTools(server: McpServer, config: Config) {
+export function registerTools(server: McpServer, config: Config, peerName: string) {
   server.tool(
     "list_directories",
     "List all configured project directories available for querying. Call this first to discover available project directories.",
     {},
     async () => {
       checkPaused();
+      notify(peerName, "(directory list)", config);
       const text = config.directories.map((d) => `${d.name} → ${d.path}`).join("\n");
       return { content: [{ type: "text" as const, text }] };
     }
@@ -37,7 +50,8 @@ export function registerTools(server: McpServer, config: Config) {
     { directory: dir },
     async ({ directory }) => {
       const cwd = await precheck(directory, config);
-      return { content: [{ type: "text" as const, text: (await runGit(cwd, ["status", "--porcelain"])) || "(clean)" }] };
+      notify(peerName, directory, config);
+      return { content: [{ type: "text" as const, text: capOutput((await runGit(cwd, ["status", "--porcelain"])) || "(clean)") }] };
     }
   );
 
@@ -46,8 +60,9 @@ export function registerTools(server: McpServer, config: Config) {
     { directory: dir, staged: z.boolean().optional().describe("If true, show only staged changes (--staged)") },
     async ({ directory, staged }) => {
       const cwd = await precheck(directory, config);
+      notify(peerName, directory, config);
       const out = await runGit(cwd, staged ? ["diff", "--staged"] : ["diff"]);
-      return { content: [{ type: "text" as const, text: out || "(no diff)" }] };
+      return { content: [{ type: "text" as const, text: capOutput(out || "(no diff)") }] };
     }
   );
 
@@ -56,8 +71,9 @@ export function registerTools(server: McpServer, config: Config) {
     { directory: dir, n: z.number().optional().describe("Number of commits to show (default: 10)") },
     async ({ directory, n }) => {
       const cwd = await precheck(directory, config);
+      notify(peerName, directory, config);
       const count = n ? validateN(n) : 10;
-      return { content: [{ type: "text" as const, text: (await runGit(cwd, ["log", "--oneline", `-n`, `${count}`, "--"])) || "(no commits)" }] };
+      return { content: [{ type: "text" as const, text: capOutput((await runGit(cwd, ["log", "--oneline", `-n`, `${count}`, "--"])) || "(no commits)") }] };
     }
   );
 
@@ -66,7 +82,8 @@ export function registerTools(server: McpServer, config: Config) {
     { directory: dir },
     async ({ directory }) => {
       const cwd = await precheck(directory, config);
-      return { content: [{ type: "text" as const, text: (await runGit(cwd, ["branch", "-a"])) || "(no branches)" }] };
+      notify(peerName, directory, config);
+      return { content: [{ type: "text" as const, text: capOutput((await runGit(cwd, ["branch", "-a"])) || "(no branches)") }] };
     }
   );
 
@@ -75,7 +92,8 @@ export function registerTools(server: McpServer, config: Config) {
     { directory: dir, ref: z.string().describe("Git ref (branch, tag, commit SHA)"), path: z.string().describe("File path relative to repo root") },
     async ({ directory, ref, path }) => {
       const cwd = await precheck(directory, config);
-      return { content: [{ type: "text" as const, text: await runGit(cwd, ["show", "--", `${validateRef(ref)}:${path}`]) }] };
+      notify(peerName, directory, config);
+      return { content: [{ type: "text" as const, text: capOutput(await runGit(cwd, ["show", "--", `${validateRef(ref)}:${path}`])) }] };
     }
   );
 
@@ -84,7 +102,8 @@ export function registerTools(server: McpServer, config: Config) {
     { directory: dir },
     async ({ directory }) => {
       const cwd = await precheck(directory, config);
-      return { content: [{ type: "text" as const, text: (await runGit(cwd, ["ls-files"])) || "(no tracked files)" }] };
+      notify(peerName, directory, config);
+      return { content: [{ type: "text" as const, text: capOutput((await runGit(cwd, ["ls-files"])) || "(no tracked files)") }] };
     }
   );
 }
