@@ -7,26 +7,15 @@ An MCP server that exposes read-only git commands to trusted peers. Ask your Cla
 ```
   You: "What is Joe working on?"
 
-  Your Claude Code                         Joe's Machine
-  ┌──────────────────┐                    ┌──────────────────┐
-  │                  │  1. authenticate   │  claude-connect   │
-  │  Claude selects  │ ──────────────────>│  (MCP server)     │
-  │  the right git   │    bearer token    │                   │
-  │  tools to answer │                    │  2. run git       │
-  │  your question   │  3. raw git output │     commands      │
-  │                  │ <──────────────────│     (read-only)   │
-  │  4. Claude reads │                    │                   │
-  │     git output,  │                    │  Only shares dirs │
-  │     gives you    │                    │  Joe configured   │
-  │     a summary    │                    │                   │
-  └──────────────────┘                    └──────────────────┘
+  Your Claude Code              Joe's Machine
+  ┌────────────────┐           ┌────────────────┐
+  │ Claude picks   │──token──> │ claude-connect  │
+  │ git tools,     │           │ runs git cmds   │
+  │ summarizes     │<──stdout──│ (read-only)     │
+  └────────────────┘           └────────────────┘
 ```
 
-- **No AI on the server** — Joe's machine just runs git commands and returns text. Your Claude does all the thinking.
-- **Nothing stored** — git output passes through memory and is gone. No logs, no database, no history.
-- **Scoped to chosen directories** — Joe decides exactly which repos to share. Nothing else on his machine is accessible.
-- **Token authenticated** — each peer gets a unique token. No token, no access.
-- **Both directions** — Joe runs the same setup, and he can query you too.
+No AI on the server. Nothing stored. Only directories Joe chose to share. Token required. Both directions.
 
 ## Setup
 
