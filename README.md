@@ -171,9 +171,13 @@ notifications: true
 ## Uninstall
 
 ```bash
-# Stop and remove the background server
+# Stop the background server
 launchctl unload ~/Library/LaunchAgents/com.claude-connect.server.plist
 rm ~/Library/LaunchAgents/com.claude-connect.server.plist
+
+# Uninstall the binary
+brew uninstall claude-connect
+brew untap aaronw122/tap    # optional
 
 # Remove config and tokens
 rm -rf ~/.claude-connect
