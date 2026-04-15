@@ -26,7 +26,7 @@ You ask "what is Joe working on?" -- your Claude calls `git_status`, `git_diff`,
 ## Prerequisites
 
 - [Bun](https://bun.sh) — JavaScript runtime
-- [Tailscale](https://tailscale.com) (recommended) — makes machines reachable to each other from anywhere. Free for personal use. If both machines are on the same WiFi, Tailscale isn't required — but it's the easiest way to make this work across networks.
+- [Tailscale](https://tailscale.com) (recommended) — makes machines reachable to each other from anywhere. Free for personal use. If both machines are on the same WiFi, it can work without. 
 
 ## Install
 
