@@ -40,10 +40,15 @@ function getTailscaleHostname(): string | null {
   return null;
 }
 
-function getBunPath(): string {
-  const result = spawnSync("which", ["bun"], { timeout: 3000 });
+function getNodePath(): string {
+  const result = spawnSync("which", ["node"], { timeout: 3000 });
   if (result.status === 0) return result.stdout.toString().trim();
-  return "/opt/homebrew/bin/bun";
+  return "/usr/local/bin/node";
+}
+
+function getLocalHostname(): string {
+  const h = hostname();
+  return h.endsWith(".local") ? h : `${h}.local`;
 }
 
 function resolvePath(p: string): string {
@@ -51,7 +56,7 @@ function resolvePath(p: string): string {
 }
 
 function installLaunchAgent(indexPath: string) {
-  const bunPath = getBunPath();
+  const nodePath = getNodePath();
 
   const plist = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -61,8 +66,8 @@ function installLaunchAgent(indexPath: string) {
   <string>${PLIST_LABEL}</string>
   <key>ProgramArguments</key>
   <array>
-    <string>${bunPath}</string>
-    <string>run</string>
+    <string>${nodePath}</string>
+    <string>--experimental-strip-types</string>
     <string>${indexPath}</string>
     <string>serve</string>
   </array>
@@ -138,11 +143,11 @@ notifications: true
   const indexPath = resolve(__dirname, "..", "index.ts");
   const serverStarted = installLaunchAgent(indexPath);
 
-  const host = hostname();
+  const localHost = getLocalHostname();
   const tailscaleHost = getTailscaleHostname();
   const tailscaleIp = getTailscaleIp();
   const localIp = getLocalIp();
-  const peerHost = tailscaleHost ?? `${host}.local`;
+  const peerHost = tailscaleHost ?? localHost;
 
   console.log("Claude Connect initialized!\n");
   console.log(`Config: ${CONFIG_PATH}`);
@@ -154,11 +159,11 @@ notifications: true
   if (serverStarted) {
     console.log(`Server: running on port ${port} (auto-starts on login)`);
   } else {
-    console.log(`Server: failed to start — run "bunx claude-connect serve" manually`);
+    console.log(`Server: failed to start — run "npx claude-connect serve" manually`);
   }
 
   console.log("\nYour addresses:");
-  console.log(`  Hostname:  ${host}.local:${port}`);
+  console.log(`  Hostname:  ${localHost}:${port}`);
   if (localIp) console.log(`  Local IP:  ${localIp}:${port}`);
   if (tailscaleHost) {
     console.log(`  Tailscale: ${tailscaleHost}:${port}`);
@@ -170,7 +175,7 @@ notifications: true
 
   console.log("\n─────────────────────────────────────────────────────");
   console.log("Send this to your peer:\n");
-  console.log(`  bunx claude-connect add-peer [your-name] \\`);
+  console.log(`  npx claude-connect add-peer [your-name] \\`);
   console.log(`    --host ${peerHost}:${port} \\`);
   console.log(`    --token ${token}\n`);
   console.log("  Replace [your-name] with whatever you want them to see.");

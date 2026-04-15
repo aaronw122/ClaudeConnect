@@ -20,6 +20,11 @@ function getTailscaleHostname(): string | null {
   return null;
 }
 
+function getLocalHostname(): string {
+  const h = hostname();
+  return h.endsWith(".local") ? h : `${h}.local`;
+}
+
 export function runInvite(args: string[]) {
   const name = args[0];
 
@@ -30,7 +35,7 @@ export function runInvite(args: string[]) {
   }
 
   if (!existsSync(CONFIG_PATH)) {
-    console.error("No config found. Run `bunx claude-connect init` first.");
+    console.error("No config found. Run `npx claude-connect init` first.");
     process.exit(1);
   }
 
@@ -51,14 +56,14 @@ export function runInvite(args: string[]) {
 
   const port = doc.server?.port ?? 8767;
   const tailscaleHost = getTailscaleHostname();
-  const peerHost = tailscaleHost ?? `${hostname()}.local`;
+  const peerHost = tailscaleHost ?? getLocalHostname();
 
   console.log(`Added peer "${name}" to config.\n`);
-  console.log("────────��─────────────────────────────────��──────────");
+  console.log("─────────────────────────────────────────────────────");
   console.log(`Send this to ${name}:\n`);
-  console.log(`  bunx claude-connect add-peer [your-name] \\`);
+  console.log(`  npx claude-connect add-peer [your-name] \\`);
   console.log(`    --host ${peerHost}:${port} \\`);
   console.log(`    --token ${token}\n`);
   console.log("  Replace [your-name] with whatever you want them to see.");
-  console.log("───────────���────────────────���────────────────────────");
+  console.log("─────────────────────────────────────────────────────");
 }
