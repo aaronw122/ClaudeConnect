@@ -50,7 +50,7 @@ This creates your config, starts the server in the background (auto-starts on lo
 claude-connect add-peer joe --host 100.79.166.31:8767 --token d4e5f6...
 ```
 
-That's it. Both directions are live.
+Then run `/mcp` in Claude Code to refresh your MCP connections. That's it — both directions are live.
 
 ## Usage
 
