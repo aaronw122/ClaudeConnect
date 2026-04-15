@@ -23,15 +23,11 @@ Your Claude connects to a peer's Claude Connect server, calls git tools, and syn
 
 You ask "what is Joe working on?" -- your Claude calls `git_status`, `git_diff`, `git_log` on Joe's server, reads the output, and gives you a summary. Joe gets a notification.
 
-## Prerequisites
-
-- [Tailscale](https://tailscale.com) (recommended) — makes machines reachable to each other from anywhere. Free for personal use. If both machines are on the same WiFi, Tailscale isn't required.
-
 ## Setup
 
-Both people do the same two steps.
+Both people do the same three steps.
 
-### Step 1. Install brew package
+### Step 1. Install
 
 ```bash
 brew tap aaronw122/tap
@@ -51,9 +47,7 @@ This creates your config, starts the server in the background (auto-starts on lo
 ### Step 3. Run the command your peer sent you
 
 ```bash
-claude-connect add-peer joe \
-  --host Joes-MacBook-Pro.local:8767 \
-  --token d4e5f6...
+claude-connect add-peer joe --host 100.79.166.31:8767 --token d4e5f6...
 ```
 
 That's it. Both directions are live.
