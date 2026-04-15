@@ -11,11 +11,13 @@ An MCP server that exposes read-only git commands to trusted peers. Ask your Cla
   ┌──────────────────────────┐                   ┌──────────────────────────┐
   │ Claude Code (MCP client) │                   │ claude-connect (server)  │
   │                          │                   │                          │
+  │                          │                   │                          │
   │ Claude picks the right   │  1. bearer token  │ runs read-only           │
   │ git tools to answer      │ ────────────────> │ git commands             │
   │ your question            │                   │                          │
   │                          │  2. git output    │                          │
   │                          │ <──────────────── │                          │
+  │                          │                   │                          │
   └──────────────────────────┘                   └──────────────────────────┘
 ```
 
