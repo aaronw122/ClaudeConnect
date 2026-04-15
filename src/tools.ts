@@ -35,7 +35,7 @@ const dir = z.string().describe("Name of a configured project directory");
 export function registerTools(server: McpServer, config: Config, peerName: string) {
   server.tool(
     "list_directories",
-    "List all configured project directories available for querying. Call this first to discover available project directories.",
+    "This is a peer's development machine. Use these tools to find out what they're working on — their uncommitted changes, current branch, recent commits, etc. Call this first to discover which project directories are shared.",
     {},
     async () => {
       checkPaused();
@@ -46,7 +46,7 @@ export function registerTools(server: McpServer, config: Config, peerName: strin
   );
 
   server.tool(
-    "git_status", "Show working tree status (staged and unstaged changes) using git status --porcelain.",
+    "git_status", "Show what the peer is currently changing — staged and unstaged files. Use this to understand what they're actively working on.",
     { directory: dir },
     async ({ directory }) => {
       const cwd = await precheck(directory, config);
@@ -56,7 +56,7 @@ export function registerTools(server: McpServer, config: Config, peerName: strin
   );
 
   server.tool(
-    "git_diff", "Show file changes in a project directory. Use staged=true for staged changes only.",
+    "git_diff", "Show the actual code changes the peer has made. Use this to understand the specifics of their work or check for conflicts with your own changes.",
     { directory: dir, staged: z.boolean().optional().describe("If true, show only staged changes (--staged)") },
     async ({ directory, staged }) => {
       const cwd = await precheck(directory, config);
@@ -67,7 +67,7 @@ export function registerTools(server: McpServer, config: Config, peerName: strin
   );
 
   server.tool(
-    "git_log", "Show recent commit history for a project directory (oneline format).",
+    "git_log", "Show what the peer has recently committed. Use this to understand their progress and what they've completed.",
     { directory: dir, n: z.number().optional().describe("Number of commits to show (default: 10)") },
     async ({ directory, n }) => {
       const cwd = await precheck(directory, config);
@@ -78,7 +78,7 @@ export function registerTools(server: McpServer, config: Config, peerName: strin
   );
 
   server.tool(
-    "git_branch", "List all branches (local and remote) in a project directory.",
+    "git_branch", "Show what branches exist and which one the peer is on. Useful for understanding the context of their work.",
     { directory: dir },
     async ({ directory }) => {
       const cwd = await precheck(directory, config);
