@@ -23,9 +23,12 @@ Your Claude connects to a peer's Claude Connect server, calls git tools, and syn
 
 You ask "what is Joe working on?" -- your Claude calls `git_status`, `git_diff`, `git_log` on Joe's server, reads the output, and gives you a summary. Joe gets a notification.
 
-## Install
+## Prerequisites
 
-Requires [Bun](https://bun.sh).
+- [Bun](https://bun.sh) — JavaScript runtime
+- [Tailscale](https://tailscale.com) (recommended) — makes machines reachable to each other from anywhere. Free for personal use. If both machines are on the same WiFi, Tailscale isn't required — but it's the easiest way to make this work across networks.
+
+## Install
 
 ```bash
 bunx claude-connect init
@@ -81,11 +84,9 @@ That's it. Ask Claude "what is Joe working on?" and it just works.
 
 Both machines need to reach each other over the network.
 
-**Same WiFi/LAN** — use your Mac's `.local` hostname (e.g., `http://Aarons-MacBook-Pro.local:8767/mcp`). This works out of the box on any Mac, stays stable even if your IP changes. Run `hostname` to find yours.
+**With Tailscale (recommended)** — If you have [Tailscale](https://tailscale.com) installed, it just works. Every machine on your tailnet gets a stable hostname reachable from anywhere, encrypted end-to-end. Your `init` output will use your machine's hostname, and your peer can connect from any network. Free for personal use, 2-minute setup.
 
-**Different networks** — use [Tailscale](https://tailscale.com) (recommended). It gives every machine a stable hostname reachable from anywhere, encrypted end-to-end. Free for personal use, 2-minute setup. Your URL becomes something like `http://aarons-macbook.tail1234.ts.net:8767/mcp`.
-
-Any VPN or direct connectivity also works — Tailscale is just the easiest path.
+**Same WiFi without Tailscale** — Use your Mac's `.local` hostname (e.g., `Aarons-MacBook-Pro.local:8767`). Works out of the box, stays stable even if your IP changes. Limited to devices on the same network.
 
 ## What peers can see
 
