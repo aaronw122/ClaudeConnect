@@ -28,31 +28,54 @@ You ask "what is Joe working on?" -- your Claude calls `git_status`, `git_diff`,
 Requires [Bun](https://bun.sh).
 
 ```bash
-bunx claude-connect init     # generate config + tokens
-bunx claude-connect serve    # start the server
+bunx claude-connect init
 ```
 
 ## Setup
 
-1. Run `bunx claude-connect init` on your machine
-2. Share your token with your peer (Slack DM, etc.)
-3. Your peer adds your server to their `.mcp.json`:
+Both people do the same thing. You exchange one line each and both directions are live.
 
-```json
-{
-  "mcpServers": {
-    "your-name": {
-      "type": "http",
-      "url": "http://your-machine:8767/mcp",
-      "headers": {
-        "Authorization": "Bearer <token-you-gave-them>"
-      }
-    }
-  }
-}
+**On your machine:**
+
+```bash
+bunx claude-connect init
 ```
 
-4. Do the same for their server on your end
+This generates your config and prints a command to send your peer:
+
+```
+Send this to your peer:
+
+  bunx claude-connect add-peer aaron \
+    --host Aarons-MacBook-Pro.local:8767 \
+    --token a1b2c3...
+```
+
+Edit `~/.claude-connect/config.yaml` to add the directories you want to share.
+
+**Your peer does the same on their machine**, then sends you their `add-peer` command.
+
+**You each run the other's command:**
+
+```bash
+# You run Joe's command (adds Joe's server to your Claude Code)
+bunx claude-connect add-peer joe \
+  --host Joes-MacBook-Pro.local:8767 \
+  --token d4e5f6...
+
+# Joe runs your command (adds your server to Joe's Claude Code)
+bunx claude-connect add-peer aaron \
+  --host Aarons-MacBook-Pro.local:8767 \
+  --token a1b2c3...
+```
+
+**Start the server on both machines:**
+
+```bash
+bunx claude-connect serve
+```
+
+That's it. Ask Claude "what is Joe working on?" and it just works.
 
 ## Networking
 
@@ -96,11 +119,12 @@ If a token is compromised, the attacker can only read git data from your configu
 
 | Command | Description |
 |---------|-------------|
-| `bunx claude-connect init` | Generate config file with random tokens |
+| `bunx claude-connect init` | Generate config and tokens |
 | `bunx claude-connect serve` | Start the MCP server |
+| `bunx claude-connect add-peer` | Add a peer's server to your Claude Code |
 | `bunx claude-connect pause` | Temporarily stop accepting queries |
 | `bunx claude-connect resume` | Resume accepting queries |
-| `bunx claude-connect status` | Show server state and recent queries |
+| `bunx claude-connect status` | Show server state |
 
 ## Config
 
