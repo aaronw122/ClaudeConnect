@@ -58,6 +58,16 @@ bunx claude-connect serve
 
 That's it. Ask Claude "what is Joe working on?" and it just works.
 
+## Pause / Resume
+
+```bash
+bunx claude-connect pause     # stop accepting queries (server stays running)
+bunx claude-connect resume    # start accepting again
+bunx claude-connect status    # check if running/paused
+```
+
+Peers will see "server is paused" until you resume. Or just kill the `serve` process to go fully offline.
+
 ## Networking
 
 Both machines need to reach each other over the network.
@@ -127,6 +137,18 @@ peers:
 
 notifications: true
 ```
+
+## Uninstall
+
+```bash
+# Remove your config and tokens
+rm -rf ~/.claude-connect
+
+# Remove peer entries from your Claude Code MCP config
+# Edit ~/.claude/.mcp.json and delete the peer entries under "mcpServers"
+```
+
+That's it. No global packages, no daemons, nothing else to clean up.
 
 ## License
 
