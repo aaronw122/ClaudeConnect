@@ -28,12 +28,6 @@ You ask "what is Joe working on?" -- your Claude calls `git_status`, `git_diff`,
 - [Bun](https://bun.sh) — JavaScript runtime
 - [Tailscale](https://tailscale.com) (recommended) — makes machines reachable to each other from anywhere. Free for personal use. If both machines are on the same WiFi, it can work without. 
 
-## Install
-
-```bash
-bunx claude-connect init
-```
-
 ## Setup
 
 Both people do the same thing. You exchange one line each and both directions are live.
