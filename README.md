@@ -15,7 +15,11 @@ An MCP server that exposes read-only git commands to trusted peers. Ask your Cla
   └────────────────┘           └────────────────┘
 ```
 
-No AI on the server. Nothing stored. Only directories Joe chose to share. Token required. Both directions.
+- **No AI on the server** — Joe's machine just runs git commands and returns text. Your Claude does all the thinking.
+- **Nothing stored** — git output passes through memory and is gone. No logs, no database, no history.
+- **Scoped to chosen directories** — Joe decides exactly which repos to share. Nothing else on his machine is accessible.
+- **Token authenticated** — each peer gets a unique token. No token, no access.
+- **Both directions** — Joe runs the same setup, and he can query you too.
 
 ## Setup
 
