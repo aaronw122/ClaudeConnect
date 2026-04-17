@@ -46,7 +46,8 @@ claude-connect init --share ~/code/my-project
 
 Peers can only see git data from the directories you choose to share here — nothing else on your machine is accessible. You can share multiple directories with additional `--share` flags.
 
-This creates your config, starts the server in the background (auto-starts on login), and prints a command to send your peer.
+This creates your config, starts the server in the background (auto-starts on login), and **prints a command to send your peer**.
+- if both of you **do not** have tailscale, ensure the command is using your local ip
 
 ### Step 3. Run the command your peer sent you
 
