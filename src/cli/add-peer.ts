@@ -48,5 +48,5 @@ export function runAddPeer(args: string[]) {
   console.log(`Added peer "${name}" to ${MCP_JSON_PATH}\n`);
   console.log(`  URL:   ${url}`);
   console.log(`  Token: ${token.slice(0, 8)}...\n`);
-  console.log("Restart Claude Code to pick up the new MCP server.");
+  console.log("Run /mcp in Claude Code to refresh your MCP connections.");
 }

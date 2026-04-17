@@ -1,7 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { homedir, hostname, networkInterfaces } from "node:os";
-import { randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
 
 const CONFIG_DIR = resolve(homedir(), ".claude-connect");
@@ -108,7 +107,6 @@ export function runInit(args: string[]) {
 
   mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
 
-  const token = randomBytes(32).toString("hex");
   const port = 8767;
 
   const dirYaml = dirs.length > 0
@@ -124,9 +122,7 @@ export function runInit(args: string[]) {
 directories:
 ${dirYaml}
 
-peers:
-  my-peer:
-    token: "${token}"
+peers: {}
 
 notifications: true
 `;
@@ -140,7 +136,6 @@ notifications: true
   const localHost = getLocalHostname();
   const tailscaleIp = getTailscaleIp();
   const localIp = getLocalIp();
-  const peerHost = tailscaleIp ?? localHost;
 
   console.log("Claude Connect initialized!\n");
   console.log(`Config: ${CONFIG_PATH}`);
@@ -164,13 +159,5 @@ notifications: true
     console.log(`  Tailscale: not detected`);
   }
 
-  console.log("\n─────────────────────────────────────────────────────");
-  console.log("Send this to your peer:\n");
-  console.log(`  claude-connect add-peer [your-name] --host ${peerHost}:${port} --token ${token}\n`);
-  console.log("  Replace [your-name] with whatever you want them to see.");
-  if (!tailscaleIp) {
-    console.log("  Using local hostname — peers must be on the same network.");
-    console.log("  Install Tailscale for cross-network access.");
-  }
-  console.log("─────────────────────────────────────────────────────");
+  console.log("\nNext step: invite a peer with `claude-connect invite <name>`");
 }

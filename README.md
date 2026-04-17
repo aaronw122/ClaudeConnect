@@ -29,33 +29,38 @@ An MCP server that exposes read-only git commands to trusted peers. Ask your Cla
 
 ## Setup
 
-Both people do the same three steps.
+Both people do the same steps.
 
-### Step 1. Install
+### 1. Install
 
 ```bash
 brew tap aaronw122/tap
 brew install claude-connect
 ```
 
-### Step 2. Initialize
+### 2. Initialize
 
 ```bash
 claude-connect init --share ~/code/my-project
 ```
 
-Peers can only see git data from the directories you choose to share here — nothing else on your machine is accessible. You can share multiple directories with additional `--share` flags.
+Creates your config and starts the server in the background (auto-starts on login). Peers can only see git data from the directories you list — nothing else on your machine is accessible. You can share multiple directories with additional `--share` flags.
 
-This creates your config, starts the server in the background (auto-starts on login), and **prints a command to send your peer**.
-- if both of you **do not** have tailscale, ensure the command is using your local ip
+### 3. Invite a peer
 
-### Step 3. Run the command your peer sent you
+```bash
+claude-connect invite joe
+```
+
+Generates a token for Joe and prints the `add-peer` command to send him.
+
+### 4. Run the command your peer sent you
 
 ```bash
 claude-connect add-peer joe --host 100.79.166.31:8767 --token d4e5f6...
 ```
 
-Then run `/mcp` in Claude Code to refresh your MCP connections. That's it — both directions are live.
+Run `/mcp` in Claude Code to refresh your MCP connections. Both directions are live.
 
 ## Usage
 
@@ -69,25 +74,9 @@ Once set up, just talk to Claude naturally in Claude Code:
 
 Claude sees your peer's MCP tools, calls `git_status`, `git_diff`, `git_log` etc. on their server, and gives you a summary. No special syntax needed.
 
-## Adding an additional peer
+## Adding more peers
 
-Only run `init` once — running it again will wipe your config. To add a new peer:
-
-```bash
-claude-connect invite conor
-```
-
-This generates a new token for Conor, adds it to your config, and prints the `add-peer` command to send them. Your existing peers and directories are untouched.
-
-When Conor sends you their command, run it:
-
-```bash
-claude-connect add-peer conor \
-  --host Conors-MacBook-Pro.local:8767 \
-  --token ...
-```
-
-Both directions are live.
+Repeat steps 3 and 4 for each new peer. `invite` generates a fresh token and leaves your existing config untouched.
 
 ## Pause / Resume
 
@@ -141,7 +130,7 @@ If a token is compromised, the attacker can only read git data from your configu
 
 | Command | Description |
 |---------|-------------|
-| `claude-connect init` | First-time setup — generates config, starts server |
+| `claude-connect init` | First-time setup — creates config, starts server |
 | `claude-connect invite <name>` | Generate a token and invite a new peer |
 | `claude-connect add-peer <name>` | Add a peer's server to your Claude Code |
 | `claude-connect pause` | Temporarily stop accepting queries |
