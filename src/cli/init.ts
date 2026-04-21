@@ -40,6 +40,11 @@ function getNodePath(): string {
 }
 
 function getLocalHostname(): string {
+  const result = spawnSync("scutil", ["--get", "LocalHostName"], { timeout: 3000 });
+  if (result.status === 0) {
+    const name = result.stdout.toString().trim();
+    if (name) return `${name}.local`;
+  }
   const h = hostname();
   return h.endsWith(".local") ? h : `${h}.local`;
 }

@@ -1,11 +1,23 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { homedir, hostname, networkInterfaces } from "node:os";
+import { homedir, networkInterfaces } from "node:os";
 import { randomBytes } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { parse, stringify } from "yaml";
 
 const CONFIG_DIR = resolve(homedir(), ".claude-connect");
 const CONFIG_PATH = resolve(CONFIG_DIR, "config.yaml");
+
+function getLocalIp(): string | null {
+  const nets = networkInterfaces();
+  for (const iface of Object.values(nets)) {
+    if (!iface) continue;
+    for (const info of iface) {
+      if (info.family === "IPv4" && !info.internal) return info.address;
+    }
+  }
+  return null;
+}
 
 function getTailscaleIp(): string | null {
   const nets = networkInterfaces();
@@ -21,6 +33,13 @@ function getTailscaleIp(): string | null {
 }
 
 function getLocalHostname(): string {
+  const result = spawnSync("scutil", ["--get", "LocalHostName"], { timeout: 3000 });
+  if (result.status === 0) {
+    const name = result.stdout.toString().trim();
+    if (name) return `${name}.local`;
+  }
+  // Fall back to os.hostname()
+  const { hostname } = require("node:os");
   const h = hostname();
   return h.endsWith(".local") ? h : `${h}.local`;
 }
@@ -56,12 +75,18 @@ export function runInvite(args: string[]) {
 
   const port = doc.server?.port ?? 8767;
   const tailscaleIp = getTailscaleIp();
-  const peerHost = tailscaleIp ?? getLocalHostname();
+  const localHostname = getLocalHostname();
+  const localIp = getLocalIp();
 
   console.log(`Added peer "${name}" to config.\n`);
   console.log("─────────────────────────────────────────────────────");
-  console.log(`Send this to ${name}:\n`);
-  console.log(`  claude-connect add-peer [your-name] --host ${peerHost}:${port} --token ${token}\n`);
+  console.log(`Send this to ${name} (pick the address that works for them):\n`);
+  console.log(`  # Same network:`);
+  console.log(`  claude-connect add-peer [your-name] --host ${localHostname}:${port} --token ${token}\n`);
+  if (tailscaleIp) {
+    console.log(`  # Anywhere (Tailscale):`);
+    console.log(`  claude-connect add-peer [your-name] --host ${tailscaleIp}:${port} --token ${token}\n`);
+  }
   console.log("  Replace [your-name] with whatever you want them to see.");
   console.log("─────────────────────────────────────────────────────");
 }
