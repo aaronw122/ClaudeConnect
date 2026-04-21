@@ -34,8 +34,7 @@ Both people do the same steps.
 ### 1. Install
 
 ```bash
-brew tap aaronw122/tap
-brew install claude-connect
+brew install aaronw122/tap/claude-connect
 ```
 
 ### 2. Initialize
