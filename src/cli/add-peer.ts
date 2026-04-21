@@ -1,8 +1,8 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { homedir } from "node:os";
 
-const MCP_JSON_PATH = resolve(homedir(), ".claude", ".mcp.json");
+const MCP_JSON_PATH = resolve(homedir(), ".claude.json");
 
 export function runAddPeer(args: string[]) {
   const name = args[0];
@@ -22,7 +22,7 @@ export function runAddPeer(args: string[]) {
     process.exit(1);
   }
 
-  // Load existing .mcp.json or create new
+  // Load existing .claude.json and merge peer into mcpServers
   let mcpConfig: { mcpServers?: Record<string, unknown> } = {};
   if (existsSync(MCP_JSON_PATH)) {
     mcpConfig = JSON.parse(readFileSync(MCP_JSON_PATH, "utf-8"));
@@ -42,7 +42,6 @@ export function runAddPeer(args: string[]) {
     },
   };
 
-  mkdirSync(resolve(homedir(), ".claude"), { recursive: true });
   writeFileSync(MCP_JSON_PATH, JSON.stringify(mcpConfig, null, 2) + "\n", "utf-8");
 
   console.log(`Added peer "${name}" to ${MCP_JSON_PATH}\n`);
