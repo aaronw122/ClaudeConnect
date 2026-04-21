@@ -33,10 +33,10 @@ function getTailscaleIp(): string | null {
   return null;
 }
 
-function getNodePath(): string {
-  const result = spawnSync("which", ["node"], { timeout: 3000 });
+function getBinaryPath(): string {
+  const result = spawnSync("which", ["claude-connect"], { timeout: 3000 });
   if (result.status === 0) return result.stdout.toString().trim();
-  return "/usr/local/bin/node";
+  return "/opt/homebrew/bin/claude-connect";
 }
 
 function getLocalHostname(): string {
@@ -53,8 +53,8 @@ function resolvePath(p: string): string {
   return p.startsWith("~/") ? resolve(homedir(), p.slice(2)) : resolve(p);
 }
 
-function installLaunchAgent(indexPath: string) {
-  const nodePath = getNodePath();
+function installLaunchAgent() {
+  const binaryPath = getBinaryPath();
 
   const plist = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -64,9 +64,7 @@ function installLaunchAgent(indexPath: string) {
   <string>${PLIST_LABEL}</string>
   <key>ProgramArguments</key>
   <array>
-    <string>${nodePath}</string>
-    <string>--experimental-strip-types</string>
-    <string>${indexPath}</string>
+    <string>${binaryPath}</string>
     <string>serve</string>
   </array>
   <key>RunAtLoad</key>
@@ -135,8 +133,7 @@ notifications: true
   writeFileSync(CONFIG_PATH, config, { encoding: "utf-8", mode: 0o600 });
 
   // Install and start LaunchAgent
-  const indexPath = resolve(__dirname, "..", "index.ts");
-  const serverStarted = installLaunchAgent(indexPath);
+  const serverStarted = installLaunchAgent();
 
   const localHost = getLocalHostname();
   const tailscaleIp = getTailscaleIp();
